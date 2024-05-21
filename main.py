@@ -76,7 +76,7 @@ model.to(device)
 
 for epoch in range(num_epochs):
     model.train()
-    bar = tqdm(range(len(train_dataloader)), desc=f"Training Epoch {epoch}")
+    tarin_bar = tqdm(range(len(train_dataloader)), desc=f"Training Epoch {epoch}")
     for batch in train_dataloader:
         input_values, input_lengths, labels, sex, speaker = batch
         input_values = input_values.to(device)
@@ -88,10 +88,12 @@ for epoch in range(num_epochs):
         optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
-        bar.update(1)
+        tarin_bar.set_postfix(loss='{:.4f}'.format(loss))
+        tarin_bar.update(1)
     
     if (epoch % 3 == 0):
         model.eval()
+        eval_bar = tqdm(len(eval_dataloader), desc=f"Training Eval")
         for batch in eval_dataloader:
             input_values, input_lengths, labels, sex, speaker = batch
             input_values = input_values.to(device)
@@ -101,12 +103,15 @@ for epoch in range(num_epochs):
             loss = outputs.loss
             logits = outputs.logits
             predictions = torch.argmax(logits, dim=-1)
-            acc = accuracy.compute(references=batch["labels"], predictions=predictions)
+            acc = accuracy.compute(references=labels, predictions=predictions)
+            eval_bar.set_postfix(loss='{:.4f}'.format(loss), accuracy='{:.4f}'.format(acc))
+            eval_bar.update(1)
             
         model.save_pretrained(f"./exp/wav2vec2/wav2vec2-base-{epoch}")
             
 
 model.eval()
+print("====== TEST ======")
 for batch in eval_dataloader:
     input_values, input_lengths, labels, sex, speaker = batch
     input_values = input_values.to(device)
