@@ -26,20 +26,23 @@ class DialectDataset(Dataset):
         input_lengths = speech_feature.size(0)  # time
         sex = SEX[self.data_dict[idx]["sex"]]
         label = Dialect[self.data_dict[idx]["label"]]
-
+        speaker = int(self.data_dict[idx]["speaker"])
         # transcript = self._parse_transcript(self.data_dict[idx]["text"])
         # target_lengths = len(transcript)
 
-        return speech_feature, input_lengths, label, sex, self.data_dict[idx]["speaker"]
+        return speech_feature, input_lengths, label, sex, speaker
 
     def __len__(self):
         return len(self.data_dict)
 
     def _parse_dataset(self):
         self.data_dict = []
-        with open(self.manifest_path) as f:
+        with open(self.manifest_path, "r", encoding='utf-8') as f:
             f.readline()
-            for line in f:
+            for line in f.readlines():
+                if (line.strip() == ""): 
+                    print(len(self.data_dict))
+                    continue
                 id, audio_path, label, speaker, sex, text = line.strip().split("\t")
                 self.data_dict.append({
                     "id": id,
@@ -53,6 +56,6 @@ class DialectDataset(Dataset):
     def _parse_audio(self, audio_path):
         waveform, sr = torchaudio.load(audio_path)
         if self.speed_perturb:
-            signal, _ = self.speed_perturb(signal)
+            waveform, _ = self.speed_perturb(waveform)
 
-        return waveform
+        return waveform.squeeze(0)
