@@ -8,13 +8,17 @@ from transformers import AutoFeatureExtractor, AutoModelForSequenceClassificatio
 from transformers import get_scheduler
 from tqdm import tqdm
 import evaluate
+from torch.utils.tensorboard import SummaryWriter
+import os
+
+logger = SummaryWriter(os.path.join("./exp", "log", "wav2vec2-base-dialect-1"))
 
 feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
     "facebook/wav2vec2-base")
 
 model_path = "facebook/wav2vec2-base"
 num_epochs = 50
-eval_step = 3
+eval_step = 5
 
 
 def collate_fn(batch):
@@ -52,8 +56,10 @@ dev_dataset = DialectDataset(
     manifest_path="/data_disk/code/TransformersForAduioClassification/data/dialects_test.tsv", dataset_path="/data_disk/datasets/Datatang-Dialect")
 
 train_dataloader = DataLoader(
-    train_dataset, shuffle=True, batch_size=8, collate_fn=collate_fn)
-eval_dataloader = DataLoader(dev_dataset, batch_size=8, collate_fn=collate_fn)
+    train_dataset, shuffle=True, batch_size=8, collate_fn=collate_fn,
+    num_workers=2)
+eval_dataloader = DataLoader(dev_dataset, batch_size=8, collate_fn=collate_fn
+        ,num_workers=2)
 
 model = Wav2Vec2ForSequenceClassification.from_pretrained(
     model_path, num_labels=len(Dialect))
@@ -76,7 +82,8 @@ model.to(device)
 
 for epoch in range(num_epochs):
     model.train()
-    tarin_bar = tqdm(range(len(train_dataloader)), desc=f"Training Epoch {epoch}")
+    tarin_bar = tqdm(range(len(train_dataloader)), desc=f"Training {epoch}")
+    train_loss = 0
     for batch in train_dataloader:
         input_values, input_lengths, labels, sex, speaker = batch
         input_values = input_values.to(device)
@@ -84,16 +91,20 @@ for epoch in range(num_epochs):
         outputs = model(input_values=input_values, labels=labels, output_hidden_states=True)
         loss = outputs.loss
         loss.backward()
-
+        train_loss+= loss
         optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
         tarin_bar.set_postfix(loss='{:.4f}'.format(loss))
-        tarin_bar.update(1)
+        tarin_bar.update()
+    train_loss /= len(train_dataloader)
+    logger.add_scalar("train_loss", train_loss, epoch)
     
     if (epoch % 3 == 0):
         model.eval()
-        eval_bar = tqdm(len(eval_dataloader), desc=f"Training Eval")
+        eval_bar = tqdm(len(eval_dataloader), desc=f"Eval")
+        tatol_loss = 0
+        tatol_acc = 0
         for batch in eval_dataloader:
             input_values, input_lengths, labels, sex, speaker = batch
             input_values = input_values.to(device)
@@ -101,11 +112,17 @@ for epoch in range(num_epochs):
             with torch.no_grad:
                 outputs = model(input_values=input_values, labels=labels, output_hidden_states=True)
             loss = outputs.loss
+            tatol_loss += loss
             logits = outputs.logits
             predictions = torch.argmax(logits, dim=-1)
             acc = accuracy.compute(references=labels, predictions=predictions)
+            tatol_acc += acc
             eval_bar.set_postfix(loss='{:.4f}'.format(loss), accuracy='{:.4f}'.format(acc))
-            eval_bar.update(1)
+            eval_bar.update()
+        tatol_loss/= len(eval_dataloader)
+        tatol_acc /= len(eval_dataloader)
+        logger.add_scalar("valid_loss", tatol_loss, epoch)
+        logger.add_scalar("valid_acc", tatol_acc, epoch)
             
         model.save_pretrained(f"./exp/wav2vec2/wav2vec2-base-{epoch}")
             
