@@ -19,7 +19,8 @@ feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
 model_path = "facebook/wav2vec2-base"
 num_epochs = 50
 eval_step = 5
-
+manifest_path = "/data_disk/code/TransformersForAduioClassification/data"
+dataset_path = "/data_disk/datasets/Datatang-Dialect"
 
 def collate_fn(batch):
     """
@@ -50,10 +51,10 @@ def collate_fn(batch):
 
 
 train_dataset = DialectDataset(
-    manifest_path="/data_disk/code/TransformersForAduioClassification/data/dialects_train.tsv", dataset_path="/data_disk/datasets/Datatang-Dialect", speed_perturb=True)
+    manifest_path=os.path.join(manifest_path,"dialects_train.tsv"), dataset_path=dataset_path, speed_perturb=True)
 
 dev_dataset = DialectDataset(
-    manifest_path="/data_disk/code/TransformersForAduioClassification/data/dialects_test.tsv", dataset_path="/data_disk/datasets/Datatang-Dialect")
+    manifest_path=os.path.join(manifest_path,"dialects_test.tsv"), dataset_path=dataset_path)
 
 train_dataloader = DataLoader(
     train_dataset, shuffle=True, batch_size=8, collate_fn=collate_fn,
@@ -80,10 +81,11 @@ device = torch.device(
     "cuda") if torch.cuda.is_available() else torch.device("cpu")
 model.to(device)
 
+train_setp = 0
+eval_setp = 0
 for epoch in range(num_epochs):
     model.train()
     tarin_bar = tqdm(range(len(train_dataloader)), desc=f"Training {epoch}")
-    train_loss = 0
     for batch in train_dataloader:
         input_values, input_lengths, labels, sex, speaker = batch
         input_values = input_values.to(device)
@@ -91,19 +93,19 @@ for epoch in range(num_epochs):
         outputs = model(input_values=input_values, labels=labels, output_hidden_states=True)
         loss = outputs.loss
         loss.backward()
-        train_loss+= loss
         optimizer.step()
         lr_scheduler.step()
         optimizer.zero_grad()
         tarin_bar.set_postfix(loss='{:.4f}'.format(loss))
         tarin_bar.update()
-    train_loss /= len(train_dataloader)
-    logger.add_scalar("train_loss", train_loss, epoch)
+        
+        train_setp+=1
+        if (train_setp % 300 == 0):
+            logger.add_scalar("train_loss", loss, train_setp)
     
     if (epoch % 3 == 0):
         model.eval()
         eval_bar = tqdm(len(eval_dataloader), desc=f"Eval")
-        tatol_loss = 0
         tatol_acc = 0
         for batch in eval_dataloader:
             input_values, input_lengths, labels, sex, speaker = batch
@@ -112,28 +114,35 @@ for epoch in range(num_epochs):
             with torch.no_grad:
                 outputs = model(input_values=input_values, labels=labels, output_hidden_states=True)
             loss = outputs.loss
-            tatol_loss += loss
             logits = outputs.logits
             predictions = torch.argmax(logits, dim=-1)
             acc = accuracy.compute(references=labels, predictions=predictions)
             tatol_acc += acc
+            eval_setp+= 1
+            if (eval_setp % 50 == 0):
+                logger.add_scalar("valid_loss", loss, eval_setp)
             eval_bar.set_postfix(loss='{:.4f}'.format(loss), accuracy='{:.4f}'.format(acc))
             eval_bar.update()
-        tatol_loss/= len(eval_dataloader)
+            
         tatol_acc /= len(eval_dataloader)
-        logger.add_scalar("valid_loss", tatol_loss, epoch)
         logger.add_scalar("valid_acc", tatol_acc, epoch)
             
         model.save_pretrained(f"./exp/wav2vec2/wav2vec2-base-{epoch}")
+    torch.cuda.empty_cache() 
             
 
 model.eval()
 print("====== TEST ======")
-for batch in eval_dataloader:
-    input_values, input_lengths, labels, sex, speaker = batch
-    input_values = input_values.to(device)
-    labels = labels.to(device)
-    with torch.no_grad:
+with torch.no_grad:
+    tatol_acc = 0
+    for batch in eval_dataloader:
+        input_values, input_lengths, labels, sex, speaker = batch
+        input_values = input_values.to(device)
+        labels = labels.to(device)
         outputs = model(input_values=input_values, labels=labels, output_hidden_states=True)
-    loss = outputs.loss
+        logits = outputs.logits
+        predictions = torch.argmax(logits, dim=-1)
+        acc = accuracy.compute(references=labels, predictions=predictions)
+        tatol_acc += acc
+    print(f" TEST accuracy {tatol_acc/len(eval_dataloader)}")
 model.save_pretrained(f"./exp/wav2vec2/wav2vec2-base-final")
