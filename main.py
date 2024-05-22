@@ -87,7 +87,7 @@ for epoch in range(num_epochs):
         input_values, input_lengths, labels, sex, speaker = batch
         input_values = input_values.to(device)
         labels = labels.to(device)
-        outputs = model(input_values=input_values, labels=labels, output_hidden_states=True)
+        outputs = model(input_values=input_values, labels=labels)
         loss = outputs.loss
         loss.backward()
         optimizer.step()
@@ -109,7 +109,7 @@ for epoch in range(num_epochs):
             input_values = input_values.to(device)
             labels = labels.to(device)
             with torch.no_grad():
-                outputs = model(input_values=input_values, labels=labels, output_hidden_states=True)
+                outputs = model(input_values=input_values, labels=labels)
             loss = outputs.loss
             logits = outputs.logits
             predictions = torch.argmax(logits, dim=-1)
@@ -125,7 +125,7 @@ for epoch in range(num_epochs):
         logger.add_scalar("valid_acc", tatol_acc, epoch)
             
         model.save_pretrained(f"./exp/wav2vec2/wav2vec2-base-{epoch}")
-    # torch.cuda.empty_cache() 
+    torch.cuda.empty_cache() 
             
 
 model.eval()
