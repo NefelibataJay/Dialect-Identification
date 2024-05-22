@@ -19,7 +19,7 @@ feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
 model_path = "facebook/wav2vec2-base"
 num_epochs = 50
 eval_step = 5
-manifest_path = "/data_disk/code/TransformersForAduioClassification/data"
+manifest_path = os.path.join(os.getcwd(), "./data")
 dataset_path = "/data_disk/datasets/Datatang-Dialect"
 
 def collate_fn(batch):
