@@ -56,11 +56,8 @@ train_dataset = DialectDataset(
 dev_dataset = DialectDataset(
     manifest_path=os.path.join(manifest_path,"dialects_test.tsv"), dataset_path=dataset_path)
 
-train_dataloader = DataLoader(
-    train_dataset, shuffle=True, batch_size=8, collate_fn=collate_fn,
-    num_workers=2)
-eval_dataloader = DataLoader(dev_dataset, batch_size=8, collate_fn=collate_fn
-        ,num_workers=2)
+train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=16, collate_fn=collate_fn,num_workers=2)
+eval_dataloader = DataLoader(dev_dataset, batch_size=8, collate_fn=collate_fn)
 
 model = Wav2Vec2ForSequenceClassification.from_pretrained(
     model_path, num_labels=len(Dialect))
