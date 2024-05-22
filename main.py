@@ -108,24 +108,24 @@ for epoch in range(num_epochs):
             input_values, input_lengths, labels, sex, speaker = batch
             input_values = input_values.to(device)
             labels = labels.to(device)
-            with torch.no_grad:
+            with torch.no_grad():
                 outputs = model(input_values=input_values, labels=labels, output_hidden_states=True)
             loss = outputs.loss
             logits = outputs.logits
             predictions = torch.argmax(logits, dim=-1)
             acc = accuracy.compute(references=labels, predictions=predictions)
-            tatol_acc += acc
+            tatol_acc += acc["accuracy"]
             eval_setp+= 1
             if (eval_setp % 50 == 0):
                 logger.add_scalar("valid_loss", loss, eval_setp)
-            eval_bar.set_postfix(loss='{:.4f}'.format(loss), accuracy='{:.4f}'.format(acc))
+            eval_bar.set_postfix(loss='{:.4f}'.format(loss), accuracy='{:.4f}'.format(acc["accuracy"]))
             eval_bar.update()
             
         tatol_acc /= len(eval_dataloader)
         logger.add_scalar("valid_acc", tatol_acc, epoch)
             
         model.save_pretrained(f"./exp/wav2vec2/wav2vec2-base-{epoch}")
-    torch.cuda.empty_cache() 
+    # torch.cuda.empty_cache() 
             
 
 model.eval()
