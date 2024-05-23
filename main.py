@@ -10,15 +10,15 @@ from tqdm import tqdm
 import evaluate
 from torch.utils.tensorboard import SummaryWriter
 import os
-
+from analysis import *
 logger = SummaryWriter(os.path.join("./exp", "log", "wav2vec2-base-dialect-1"))
 
 feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
     "facebook/wav2vec2-base")
 
 model_path = "facebook/wav2vec2-base"
-num_epochs = 50
-eval_step = 5
+num_epochs = 10
+eval_step = 2
 manifest_path = os.path.join(os.getcwd(), "./data")
 dataset_path = "/data_disk/datasets/Datatang-Dialect"
 
@@ -74,8 +74,9 @@ lr_scheduler = get_scheduler(
 
 accuracy = evaluate.load("./metrics/accuracy")
 
-device = torch.device(
-    "cuda") if torch.cuda.is_available() else torch.device("cpu")
+# device = torch.device(
+#     "cuda") if torch.cuda.is_available() else torch.device("cpu")
+device = torch.device("cpu")
 model.to(device)
 
 train_setp = 0
