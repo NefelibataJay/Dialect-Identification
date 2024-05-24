@@ -3,6 +3,8 @@ from transformers import Wav2Vec2PreTrainedModel, Wav2Vec2Model
 import torch
 from torch import nn
 
+from model.grl import *
+
 _HIDDEN_STATES_START_POSITION = 2
 
 class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
@@ -19,10 +21,24 @@ class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
             self.layer_weights = nn.Parameter(torch.ones(num_layers) / num_layers)
         self.projector = nn.Linear(config.hidden_size, config.classifier_proj_size)
         self.classifier = nn.Linear(config.classifier_proj_size, config.num_labels)
+        
+        self.speaker_classifier = None
 
         # Initialize weights and apply final processing
         self.post_init()
+    
+    def init_speaker(self, num_speaker):
+        self.speaker_classifier = NormalClassifier(self.config.classifier_proj_size, num_speaker, GRL=GRL)
+    
+    def set_lambda(self, lambda_):
+        self.speaker_classifier.set_lambda(lambda_)
         
+
+    def freeze_layers(self, num_layers_to_freeze: int):
+        for param in self.wav2vec2.encoder.layers[num_layers_to_freeze:].parameters():
+            param.requires_grad = False
+        
+    
     def freeze_feature_encoder(self):
         """
         Calling this function will disable the gradient computation for the feature encoder so that its parameter will
@@ -45,6 +61,7 @@ class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         labels: Optional[torch.Tensor] = None,
+        speaker_labels: Optional[torch.Tensor] = None,
     ) -> Tuple:
         
         output_hidden_states = True if self.config.use_weighted_layer_sum else output_hidden_states
@@ -75,6 +92,12 @@ class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
             pooled_output = hidden_states.sum(dim=1) / padding_mask.sum(dim=1).view(-1, 1)
 
         logits = self.classifier(pooled_output)
+        
+        speaker_loss = None
+        if speaker_labels:
+            speaker_logits = self.speaker_classifier(pooled_output)
+            loss_fct = nn.CrossEntropyLoss(0.25)
+            loss = loss_fct(logits.view(-1, self.config.num_labels), labels.view(-1))
 
         loss = None
         if labels is not None:
