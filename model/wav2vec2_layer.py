@@ -73,7 +73,7 @@ class Wav2Vec2LayerClassification(Wav2Vec2PreTrainedModel):
         else:
             hidden_states = outputs[0]
 
-        if use_layer is not None and len(outputs) > 3:
+        if use_layer is not None and len(outputs) == 3:
             hidden_states = outputs[2][use_layer]
         
         

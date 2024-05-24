@@ -11,16 +11,23 @@ import evaluate
 from torch.utils.tensorboard import SummaryWriter
 import os
 from analysis import *
-logger = SummaryWriter(os.path.join("./exp", "log", "wav2vec2-base-dialect-1"))
+from model import Wav2Vec2LayerClassification
 
 feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(
     "facebook/wav2vec2-base")
 
+# 3 6 9 12 
+freeze_layer = 3 # None
+batch_size = 16
 model_path = "facebook/wav2vec2-base"
 num_epochs = 10
 eval_step = 2
 manifest_path = os.path.join(os.getcwd(), "./data")
 dataset_path = "/data_disk/datasets/Datatang-Dialect"
+save_path = f"./exp/wav2vec2-freeze-{freeze_layer}/wav2vec2-base-dialect-"
+
+logger = SummaryWriter(os.path.join("./exp", "log", f"wav2vec2-base-dialect-FL{freeze_layer}"))
+
 
 def collate_fn(batch):
     """
@@ -56,14 +63,15 @@ train_dataset = DialectDataset(
 dev_dataset = DialectDataset(
     manifest_path=os.path.join(manifest_path,"dialects_test.tsv"), dataset_path=dataset_path)
 
-train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=16, collate_fn=collate_fn,num_workers=2)
-eval_dataloader = DataLoader(dev_dataset, batch_size=8, collate_fn=collate_fn)
+train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size, collate_fn=collate_fn,num_workers=2)
+eval_dataloader = DataLoader(dev_dataset, batch_size=1, collate_fn=collate_fn)
 
-model = Wav2Vec2ForSequenceClassification.from_pretrained(
+model = Wav2Vec2LayerClassification.from_pretrained(
     model_path, num_labels=len(Dialect))
 
-# output_hidden_states  返回所有层的输出
-# output_attentions  返回所有注意力层的输出
+model.freeze_feature_encoder()
+if freeze_layer is not None:
+    model.freeze_layers(3)
 
 optimizer = AdamW(model.parameters(), lr=5e-5)
 
@@ -74,9 +82,9 @@ lr_scheduler = get_scheduler(
 
 accuracy = evaluate.load("./metrics/accuracy")
 
-# device = torch.device(
-#     "cuda") if torch.cuda.is_available() else torch.device("cpu")
-device = torch.device("cpu")
+device = torch.device(
+    "cuda") if torch.cuda.is_available() else torch.device("cpu")
+# device = torch.device("cpu")
 model.to(device)
 
 train_setp = 0
@@ -88,8 +96,8 @@ for epoch in range(num_epochs):
         input_values, input_lengths, labels, sex, speaker = batch
         input_values = input_values.to(device)
         labels = labels.to(device)
-        outputs = model(input_values=input_values, labels=labels)
-        loss = outputs.loss
+        outputs = model(input_values=input_values, labels=labels, output_hidden_states=True,use_layer=freeze_layer)
+        loss = outputs[0]
         loss.backward()
         optimizer.step()
         lr_scheduler.step()
@@ -110,9 +118,9 @@ for epoch in range(num_epochs):
             input_values = input_values.to(device)
             labels = labels.to(device)
             with torch.no_grad():
-                outputs = model(input_values=input_values, labels=labels)
-            loss = outputs.loss
-            logits = outputs.logits
+                outputs = model(input_values=input_values, labels=labels, output_hidden_states=True)
+            loss = outputs[0]
+            logits = outputs[1]
             predictions = torch.argmax(logits, dim=-1)
             acc = accuracy.compute(references=labels, predictions=predictions)
             tatol_acc += acc["accuracy"]
@@ -125,7 +133,7 @@ for epoch in range(num_epochs):
         tatol_acc /= len(eval_dataloader)
         logger.add_scalar("valid_acc", tatol_acc, epoch)
             
-        model.save_pretrained(f"./exp/wav2vec2/wav2vec2-base-{epoch}")
+        model.save_pretrained(f"{save_path}{epoch}")
     torch.cuda.empty_cache() 
             
 
@@ -138,9 +146,9 @@ with torch.no_grad:
         input_values = input_values.to(device)
         labels = labels.to(device)
         outputs = model(input_values=input_values, labels=labels, output_hidden_states=True)
-        logits = outputs.logits
+        logits = outputs[1]
         predictions = torch.argmax(logits, dim=-1)
         acc = accuracy.compute(references=labels, predictions=predictions)
         tatol_acc += acc
     print(f" TEST accuracy {tatol_acc/len(eval_dataloader)}")
-model.save_pretrained(f"./exp/wav2vec2/wav2vec2-base-final")
+model.save_pretrained(f"{save_path}final")
