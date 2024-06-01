@@ -4,9 +4,17 @@
 
 You need to prepare two `tsv` files, called `train.tsv` and `dev.tsv`.
 
-### Modify MyDataset class
+Preferably a file in the following format, Separated by "\t":
 
-### (Optional) Modify the `collate_fn` function to support the pre-trained models you need
+```txt
+id audio_path label speaker sex text"
+```
+
+**If you don't have that many parameters you'll have to change the code in two places:**
+
+#### (Optional) Modify MyDataset class
+
+#### (Optional) Modify the `collate_fn` function to support the pre-trained models you need
 
 ## Install
 
