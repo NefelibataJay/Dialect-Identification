@@ -44,6 +44,7 @@ class MyDataset(Dataset):
                 if (line.strip() == ""): 
                     print(len(self.data_dict))
                     continue
+                # !! NOTE Adaptation of tsv files
                 id, audio_path, label, speaker, sex, text = line.strip().split("\t")
                 self.data_dict.append({
                     "id": id,
