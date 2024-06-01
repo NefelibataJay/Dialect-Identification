@@ -17,6 +17,7 @@ def get_args():
     parser.add_argument("--model_name", type=str, default="wavlm-base-dialect", help="The name of your trained model")
     parser.add_argument("--num_eopch", type=int, default=5, help="The number of training epochs")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=2, help="The number of gradient accumulation steps")
+    parser.add_argument("--freeze_feature_encoder", action="store_true", help="Whether to freeze the feature encoder")
     return parser.parse_args()
 
 # 评估指标
@@ -111,4 +112,7 @@ if __name__ == "__main__":
     else:
         model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
     
+    if args.freeze_feature_encoder:
+        model.freeze_feature_encoder()
+
     main(args)
