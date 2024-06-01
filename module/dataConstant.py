@@ -4,7 +4,7 @@ SEX = {
     "Female": 1
 }
 
-Dialect = {
+LABELS = {
     'None': 0,
     'Changsha': 1,
     'Kunming': 2,

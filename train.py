@@ -3,18 +3,20 @@ import torch
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
-from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, AutoModelForSequenceClassification
+from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, AutoModelForSequenceClassification, WavLMForSequenceClassification
 import evaluate
 import argparse
 from module.mydatasets import *
-from module.dataConstant import SEX, Dialect, SPEAKER_NUM
+from module.dataConstant import SEX, LABELS, SPEAKER_NUM
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="microsoft/wavlm-base")
-    parser.add_argument("--manifest_path", type=str, default="./data")
-    parser.add_argument("--dataset_path", type=str, default="/root/DialectDataset/Datatang-Dialect")
-    parser.add_argument("--model_name", type=str, default="wavlm-base-dialect")
+    parser.add_argument("--model_path", type=str, default="microsoft/wavlm-base", help="The path or name of the pre-trained model")
+    parser.add_argument("--manifest_path", type=str, default="./data", help="The path of the manifest file")
+    parser.add_argument("--dataset_path", type=str, default="/root/DialectDataset/Datatang-Dialect", help="The path of the dataset")
+    parser.add_argument("--model_name", type=str, default="wavlm-base-dialect", help="The name of your trained model")
+    parser.add_argument("--num_eopch", type=int, default=5, help="The number of training epochs")
+    parser.add_argument("--gradient_accumulation_steps", type=int, default=2, help="The number of gradient accumulation steps")
     return parser.parse_args()
 
 # 评估指标
@@ -44,7 +46,9 @@ def collate_fn(batch):
         speaker: [batch]
     """
     speech_feature = [i[0].numpy() for i in batch]
-    label = torch.LongTensor([i[2] for i in batch])
+    label = torch.LongTensor([i[1] for i in batch])
+
+    # TODO add FBANK and MFCC feature
 
     speech_feature = feature_extractor(
         speech_feature, 
@@ -58,44 +62,39 @@ def collate_fn(batch):
             "labels": label,
         }
 
-def main():
+def main(args):
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    # device = torch.device("cpu")
     model.to(device)
 
-    train_dataset = DialectDataset(
-        manifest_path=os.path.join(manifest_path,"dialects_train.tsv"), dataset_path=dataset_path, speed_perturb=True)
+    train_dataset = MyDataset(
+        manifest_path=os.path.join(manifest_path,"train.tsv"), dataset_path=dataset_path, speed_perturb=True)
 
-    dev_dataset = DialectDataset(
-        manifest_path=os.path.join(manifest_path,"dialects_test.tsv"), dataset_path=dataset_path)
+    dev_dataset = MyDataset(
+        manifest_path=os.path.join(manifest_path,"dev.tsv"), dataset_path=dataset_path)
 
-    train_args = TrainingArguments(output_dir=output_dir,  # 输出文件夹
-                                auto_find_batch_size="power2",  # 自动寻找batch_size
-                                    gradient_accumulation_steps=2,  # 梯度累积
-                                logging_steps=10,                # log 打印的频率
-                                evaluation_strategy="epoch",     # 评估策略
-                                num_train_epochs = 5,            # 训练epoch数
-                                save_strategy="epoch",           # 保存策略
-                                save_total_limit=1,              # 最大保存数
-                                learning_rate=2e-5,              # 学习率
-                                weight_decay=0.01,               # weight_decay
-                                metric_for_best_model="accuracy",      # 设定评估指标
+    train_args = TrainingArguments(output_dir=output_dir, 
+                                auto_find_batch_size="power2",
+                                logging_steps=10,
+                                evaluation_strategy="epoch",
+                                num_train_epochs = args.num_eopch,
+                                gradient_accumulation_steps=args.gradient_accumulation_steps,
+                                save_strategy="epoch",
+                                save_total_limit=1,
+                                learning_rate=2e-5,
+                                weight_decay=0.01,
+                                metric_for_best_model="accuracy",
                                 load_best_model_at_end=True
-                                )     # 训练完成后加载最优模型
+                                )
     
     # TODO add coustom optimizers for Trainer
-    trainer = Trainer(model = model, # 训练模型
-                    args = train_args, # 训练参数
-                    train_dataset = train_dataset, # 训练集
-                    eval_dataset = dev_dataset, # 测试集
-                    data_collator=collate_fn, # 数据处理
-                    compute_metrics = eval_metric) # 评估函数
-    # 模型训练
+    trainer = Trainer(model = model, 
+                    args = train_args,
+                    train_dataset = train_dataset,
+                    eval_dataset = dev_dataset,
+                    data_collator=collate_fn,
+                    compute_metrics = eval_metric)
     trainer.train()
-    # 模型评估
     trainer.evaluate(eval_dataset=dev_dataset)
-    # 模型测试
-    # trainer.predict(tokenized_datasets["test"])
     print("All done!")
 
 if __name__ == "__main__":
@@ -107,6 +106,9 @@ if __name__ == "__main__":
     output_dir = os.path.join("./exp", model_name)
 
     feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
-    model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=len(Dialect))
-
-    main()
+    if model_path.startswith("microsoft/wavlm"):
+        model = WavLMForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
+    else:
+        model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
+    
+    main(args)
