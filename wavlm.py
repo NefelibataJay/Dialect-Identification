@@ -3,7 +3,7 @@ import torch
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
-from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, AutoModelForSequenceClassification
+from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, WavLMForSequenceClassification
 import evaluate
 import argparse
 from module.mydatasets import *
@@ -107,6 +107,6 @@ if __name__ == "__main__":
     output_dir = os.path.join("./exp", model_name)
 
     feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
-    model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=len(Dialect))
+    model = WavLMForSequenceClassification.from_pretrained(model_path, num_labels=len(Dialect))
 
     main()

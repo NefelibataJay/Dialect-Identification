@@ -1,9 +1,9 @@
 import os
-
+from typing import Dict
 import torchaudio
 from torch.utils.data import Dataset
 
-from dataConstant import SEX, Dialect
+from module.dataConstant import SEX, Dialect
 
 
 class DialectDataset(Dataset):
@@ -59,3 +59,4 @@ class DialectDataset(Dataset):
             waveform, _ = self.speed_perturb(waveform)
 
         return waveform.squeeze(0)
+        
