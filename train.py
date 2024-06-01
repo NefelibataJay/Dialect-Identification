@@ -17,6 +17,7 @@ def get_args():
     parser.add_argument("--model_name", type=str, default="wavlm-base-dialect", help="The name of your trained model")
     parser.add_argument("--num_eopch", type=int, default=5, help="The number of training epochs")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=2, help="The number of gradient accumulation steps")
+    parser.add_argument("--lr", type=float, default=2e-5, help="The learning rate of the optimizer")
     parser.add_argument("--freeze_feature_encoder", action="store_true", help="Whether to freeze the feature encoder")
     return parser.parse_args()
 
@@ -79,9 +80,9 @@ def main(args):
                                 evaluation_strategy="epoch",
                                 num_train_epochs = args.num_eopch,
                                 gradient_accumulation_steps=args.gradient_accumulation_steps,
+                                learning_rate=args.lr,
                                 save_strategy="epoch",
                                 save_total_limit=1,
-                                learning_rate=2e-5,
                                 weight_decay=0.01,
                                 metric_for_best_model="accuracy",
                                 load_best_model_at_end=True
