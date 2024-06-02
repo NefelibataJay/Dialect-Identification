@@ -3,7 +3,7 @@ import torch
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
-from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, AutoModelForSequenceClassification, WavLMForSequenceClassification, HubertForSequenceClassification, Wav2Vec2ForSequenceClassification
+from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, AutoModelForSequenceClassification, WavLMForSequenceClassification, HubertForSequenceClassification, Wav2Vec2ForSequenceClassification,WhisperForAudioClassification
 import evaluate
 import argparse
 from module.mydatasets import *
@@ -116,6 +116,8 @@ if __name__ == "__main__":
         model = Wav2Vec2ForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
     elif model_path.startswith("facebook/hubert"):
         model = HubertForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
+    elif model_path.startswith("openai/whisper"):
+        model = WhisperForAudioClassification.from_pretrained(model_path, num_labels=len(LABELS))
     else:
         model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS)) 
     
