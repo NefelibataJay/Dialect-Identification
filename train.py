@@ -3,7 +3,7 @@ import torch
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
-from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, AutoModelForSequenceClassification, WavLMForSequenceClassification
+from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, AutoModelForSequenceClassification, WavLMForSequenceClassification, HubertForSequenceClassification, Wav2Vec2ForSequenceClassification
 import evaluate
 import argparse
 from module.mydatasets import *
@@ -23,18 +23,18 @@ def get_args():
 
 # 评估指标
 acc_metric = evaluate.load("./metrics/accuracy")
-f1_metric = evaluate.load("./metrics/f1")
-re_metric = evaluate.load("./metrics/recall")
+# f1_metric = evaluate.load("./metrics/f1")
+# re_metric = evaluate.load("./metrics/recall")
 def eval_metric(eval_predict):
     predictions, labels = eval_predict
     predictions = predictions.argmax(axis=-1)
     accuracy = acc_metric.compute(predictions=predictions, references=labels)
-    f1 = f1_metric.compute(predictions=predictions, references=labels)
-    recall = re_metric.compute(predictions=predictions, references=labels)
+    # f1 = f1_metric.compute(predictions=predictions, references=labels)
+    # recall = re_metric.compute(predictions=predictions, references=labels)
     return {
         "accuracy": accuracy["accuracy"],
-        "f1": f1["f1"],
-        "recall": recall["recall"]
+        # "f1": f1["f1"],
+        # "recall": recall["recall"]
     }
 
 def collate_fn(batch):
@@ -95,7 +95,9 @@ def main(args):
                     eval_dataset = dev_dataset,
                     data_collator=collate_fn,
                     compute_metrics = eval_metric)
+    print("Start training...")
     trainer.train()
+    print("Start evaluating...")
     trainer.evaluate(eval_dataset=dev_dataset)
     print("All done!")
 
@@ -110,8 +112,12 @@ if __name__ == "__main__":
     feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
     if model_path.startswith("microsoft/wavlm"):
         model = WavLMForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
+    elif model_path.startswith("facebook/wav2vec2"):
+        model = Wav2Vec2ForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
+    elif model_path.startswith("facebook/hubert"):
+        model = HubertForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
     else:
-        model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
+        model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS)) 
     
     if args.freeze_feature_encoder:
         model.freeze_feature_encoder()
