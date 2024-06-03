@@ -11,10 +11,10 @@ from module.dataConstant import SEX, LABELS, SPEAKER_NUM
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="microsoft/wavlm-base", help="The path or name of the pre-trained model")
+    parser.add_argument("--model_path", type=str, default="facebook/wav2vec2-base", help="The path or name of the pre-trained model")
     parser.add_argument("--manifest_path", type=str, default="./data", help="The path of the manifest file")
     parser.add_argument("--dataset_path", type=str, default="/root/DialectDataset/Datatang-Dialect", help="The path of the dataset")
-    parser.add_argument("--model_name", type=str, default="wavlm-base-dialect", help="The name of your trained model")
+    parser.add_argument("--model_name", type=str, default="hubert-base-dialect", help="The name of your trained model")
     parser.add_argument("--num_eopch", type=int, default=5, help="The number of training epochs")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=2, help="The number of gradient accumulation steps")
     parser.add_argument("--lr", type=float, default=2e-5, help="The learning rate of the optimizer")
@@ -60,6 +60,7 @@ def collate_fn(batch):
     )["input_values"]
 
     return {
+            # "input_features": speech_feature, # if you use whisper model
             "input_values": speech_feature,
             "labels": label,
         }
@@ -109,17 +110,22 @@ if __name__ == "__main__":
     model_name = args.model_name
     output_dir = os.path.join("./exp", model_name)
 
-    feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
-    if model_path.startswith("microsoft/wavlm"):
-        model = WavLMForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
-    elif model_path.startswith("facebook/wav2vec2"):
-        model = Wav2Vec2ForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
-    elif model_path.startswith("facebook/hubert"):
-        model = HubertForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
-    elif model_path.startswith("openai/whisper"):
-        model = WhisperForAudioClassification.from_pretrained(model_path, num_labels=len(LABELS))
+    if not os.path.exists(model_path):
+        feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
+        if model_path.startswith("microsoft/wavlm"):
+            model = WavLMForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
+        elif model_path.startswith("facebook/wav2vec2"):
+            model = Wav2Vec2ForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
+        elif model_path.startswith("facebook/hubert"):
+            model = HubertForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
+        elif model_path.startswith("openai/whisper"):
+            model = WhisperForAudioClassification.from_pretrained(model_path, num_labels=len(LABELS))
+        else:
+            model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
     else:
-        model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS)) 
+        # !! please change the code below to match your model
+        # model = ***.from_pretrained(model_path)
+        raise ValueError("You may be using a local directory to load models, but these models have different initializers, so you'll need to change the initializer in your code to match the model you need.")
     
     if args.freeze_feature_encoder:
         model.freeze_feature_encoder()
