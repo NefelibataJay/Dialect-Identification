@@ -3,9 +3,6 @@ from typing import Dict
 import torchaudio
 from torch.utils.data import Dataset
 
-from module.dataConstant import SEX, LABELS
-
-
 class MyDataset(Dataset):
     def __init__(self, manifest_path: str, dataset_path: str, sample_rate: int = 16000, speed_perturb: bool = False):
         super(MyDataset, self).__init__()
@@ -13,6 +10,9 @@ class MyDataset(Dataset):
         self.manifest_path = manifest_path
         self.dataset_path = dataset_path
         self.speed_perturb = speed_perturb
+
+        self.labels_dict = None
+        self.sex_dict = {None: 0, "Male": 1, "Female": 2}
 
         if speed_perturb:
             # 1.0:60%  0.9:20% 1.1:20%
@@ -23,8 +23,8 @@ class MyDataset(Dataset):
 
     def __getitem__(self, idx):
         speech_feature = self._parse_audio(self.data_dict[idx]["audio_path"])
-        sex = SEX[self.data_dict[idx]["sex"]]
-        label = LABELS[self.data_dict[idx]["label"]]
+        sex = self.data_dict[idx]["sex"]
+        label = self.data_dict[idx]["label"]
         speaker = int(self.data_dict[idx]["speaker"])
 
         # if you need to use the transcript, you can use the following code
@@ -38,6 +38,8 @@ class MyDataset(Dataset):
 
     def _parse_dataset(self):
         self.data_dict = []
+        self.labels_dict = {'None': 0}
+        count = 1
         with open(self.manifest_path, "r", encoding='utf-8') as f:
             f.readline()
             for line in f.readlines():
@@ -46,13 +48,16 @@ class MyDataset(Dataset):
                     continue
                 # !! NOTE Adaptation of tsv files
                 id, audio_path, label, speaker, sex, text = line.strip().split("\t")
+                if label not in self.labels_dict:
+                    self.labels_dict[label] = count
+                    count += 1
                 self.data_dict.append({
                     "id": id,
                     "audio_path": os.path.join(self.dataset_path, audio_path),
-                    "label": label,
+                    "label": self.labels_dict[label],
                     "speaker": speaker,
                     "text": text,
-                    "sex": sex
+                    "sex": self.sex_dict[sex]
                 })
 
     def _parse_audio(self, audio_path):
