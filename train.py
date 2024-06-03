@@ -124,6 +124,7 @@ if __name__ == "__main__":
             model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=len(LABELS))
     else:
         # !! please change the code below to match your model
+        # feature_extractor = ***.from_pretrained(model_path)
         # model = ***.from_pretrained(model_path)
         raise ValueError("You may be using a local directory to load models, but these models have different initializers, so you'll need to change the initializer in your code to match the model you need.")
     
