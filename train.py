@@ -18,9 +18,9 @@ def get_args():
     parser.add_argument("--gradient_accumulation_steps", type=int, default=2, help="The number of gradient accumulation steps")
     parser.add_argument("--lr", type=float, default=2e-5, help="The learning rate of the optimizer")
     parser.add_argument("--freeze_feature_encoder", action="store_true", help="Whether to freeze the feature encoder")
+    parser.add_argument("--batch_size",type=int, default=8, help="The number of training batch size")
     return parser.parse_args()
 
-# 评估指标
 acc_metric = evaluate.load("./metrics/accuracy")
 # f1_metric = evaluate.load("./metrics/f1")
 # re_metric = evaluate.load("./metrics/recall")
@@ -69,16 +69,18 @@ def main(args):
     model.to(device)
 
     train_args = TrainingArguments(output_dir=output_dir, 
-                                auto_find_batch_size="power2",
+                                per_device_train_batch_size=args.batch_size,
+                                per_device_eval_batch_size=4,
                                 logging_steps=10,
                                 evaluation_strategy="epoch",
                                 num_train_epochs = args.num_eopch,
                                 gradient_accumulation_steps=args.gradient_accumulation_steps,
                                 learning_rate=args.lr,
                                 save_strategy="epoch",
-                                save_total_limit=1,
+                                save_total_limit=2,
                                 weight_decay=0.01,
                                 metric_for_best_model="accuracy",
+                                gradient_checkpointing=True,
                                 load_best_model_at_end=True
                                 )
     
@@ -94,6 +96,8 @@ def main(args):
     print("Start evaluating...")
     trainer.evaluate(eval_dataset=dev_dataset)
     print("All done!")
+    feature_extractor.save_pretrained(output_dir+"final")
+    model.save_pretrained(output_dir+"final")
 
 if __name__ == "__main__":
     args = get_args()
@@ -130,5 +134,7 @@ if __name__ == "__main__":
     
     if args.freeze_feature_encoder:
         model.freeze_feature_encoder()
+
+    # model.gradient_checkpointing_enable()
 
     main(args)
