@@ -15,8 +15,8 @@ def get_args():
     parser.add_argument("--dataset_path", type=str, default="/root/DialectDataset/Datatang-Dialect", help="The path of the dataset")
     parser.add_argument("--model_name", type=str, default="hubert-base-dialect", help="The name of your trained model")
     parser.add_argument("--num_eopch", type=int, default=5, help="The number of training epochs")
-    parser.add_argument("--gradient_accumulation_steps", type=int, default=2, help="The number of gradient accumulation steps")
-    parser.add_argument("--lr", type=float, default=2e-5, help="The learning rate of the optimizer")
+    parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="The number of gradient accumulation steps")
+    parser.add_argument("--lr", type=float, default=3e-5, help="The learning rate of the optimizer")
     parser.add_argument("--freeze_feature_encoder", action="store_true", help="Whether to freeze the feature encoder")
     parser.add_argument("--batch_size",type=int, default=8, help="The number of training batch size")
     return parser.parse_args()
@@ -65,22 +65,22 @@ def collate_fn(batch):
         }
 
 def main(args):
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    model.to(device)
-
+    # device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    # model.to(device)
     train_args = TrainingArguments(output_dir=output_dir, 
-                                per_device_train_batch_size=args.batch_size,
-                                per_device_eval_batch_size=4,
+                                auto_find_batch_size=True,
+                                # per_device_train_batch_size=args.batch_size,
+                                # per_device_eval_batch_size=4,
                                 logging_steps=10,
                                 evaluation_strategy="epoch",
+                                save_strategy="epoch",
                                 num_train_epochs = args.num_eopch,
                                 gradient_accumulation_steps=args.gradient_accumulation_steps,
                                 learning_rate=args.lr,
-                                save_strategy="epoch",
-                                save_total_limit=2,
-                                weight_decay=0.01,
+                                warmup_ratio=0.1,
                                 metric_for_best_model="accuracy",
-                                gradient_checkpointing=True,
+                                eval_accumulation_steps=1,
+                                # gradient_checkpointing=True,
                                 load_best_model_at_end=True
                                 )
     
@@ -89,12 +89,12 @@ def main(args):
                     args = train_args,
                     train_dataset = train_dataset,
                     eval_dataset = dev_dataset,
-                    data_collator=collate_fn,
+                    data_collator= collate_fn,
                     compute_metrics = eval_metric)
     print("Start training...")
     trainer.train()
-    print("Start evaluating...")
-    trainer.evaluate(eval_dataset=dev_dataset)
+    # print("Start evaluating...")
+    # trainer.evaluate(eval_dataset=dev_dataset)
     print("All done!")
     feature_extractor.save_pretrained(output_dir+"final")
     model.save_pretrained(output_dir+"final")
