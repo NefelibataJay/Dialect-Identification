@@ -10,30 +10,24 @@ from module.mydatasets import *
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="facebook/wav2vec2-base", help="The path or name of the pre-trained model")
+    parser.add_argument("--model_path", type=str, default="./exp/wav2vec2-base", help="The path or name of the pre-trained model")
     parser.add_argument("--manifest_path", type=str, default="./data", help="The path of the manifest file")
     parser.add_argument("--dataset_path", type=str, default="/root/DialectDataset/Datatang-Dialect", help="The path of the dataset")
-    parser.add_argument("--model_name", type=str, default="hubert-base-dialect", help="The name of your trained model")
+    parser.add_argument("--model_name", type=str, default="wav2vec2-dialect", help="The name of your trained model")
     parser.add_argument("--num_eopch", type=int, default=5, help="The number of training epochs")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="The number of gradient accumulation steps")
     parser.add_argument("--lr", type=float, default=3e-5, help="The learning rate of the optimizer")
     parser.add_argument("--freeze_feature_encoder", action="store_true", help="Whether to freeze the feature encoder")
-    parser.add_argument("--batch_size",type=int, default=8, help="The number of training batch size")
+    parser.add_argument("--batch_size",type=int, default=12, help="The number of training batch size")
     return parser.parse_args()
 
 acc_metric = evaluate.load("./metrics/accuracy")
-# f1_metric = evaluate.load("./metrics/f1")
-# re_metric = evaluate.load("./metrics/recall")
 def eval_metric(eval_predict):
     predictions, labels = eval_predict
-    predictions = predictions.argmax(axis=-1)
+    predictions = predictions[0].argmax(axis=-1)
     accuracy = acc_metric.compute(predictions=predictions, references=labels)
-    # f1 = f1_metric.compute(predictions=predictions, references=labels)
-    # recall = re_metric.compute(predictions=predictions, references=labels)
     return {
         "accuracy": accuracy["accuracy"],
-        # "f1": f1["f1"],
-        # "recall": recall["recall"]
     }
 
 def collate_fn(batch):
@@ -70,8 +64,8 @@ def main(args):
     train_args = TrainingArguments(output_dir=output_dir, 
                                 auto_find_batch_size=True,
                                 # per_device_train_batch_size=args.batch_size,
-                                # per_device_eval_batch_size=4,
-                                logging_steps=10,
+                                # per_device_eval_batch_size=1,
+                                logging_steps=50,
                                 evaluation_strategy="epoch",
                                 save_strategy="epoch",
                                 num_train_epochs = args.num_eopch,
@@ -79,8 +73,8 @@ def main(args):
                                 learning_rate=args.lr,
                                 warmup_ratio=0.1,
                                 metric_for_best_model="accuracy",
-                                eval_accumulation_steps=1,
-                                # gradient_checkpointing=True,
+                                eval_accumulation_steps=20,
+                                gradient_checkpointing=True,
                                 load_best_model_at_end=True
                                 )
     
@@ -93,11 +87,16 @@ def main(args):
                     compute_metrics = eval_metric)
     print("Start training...")
     trainer.train()
-    # print("Start evaluating...")
-    # trainer.evaluate(eval_dataset=dev_dataset)
+    test(args, trainer)
     print("All done!")
-    feature_extractor.save_pretrained(output_dir+"final")
-    model.save_pretrained(output_dir+"final")
+
+def test(args, trainer):
+    test_list = os.listdir(os.path.join(manifest_path,"TEST"))
+
+    for test_path in test_list:
+        test_dataset = MyDataset(os.path.join(manifest_path,"TEST",test_path), dataset_path=dataset_path)
+        trainer.predict(test_dataset)
+
 
 if __name__ == "__main__":
     args = get_args()
