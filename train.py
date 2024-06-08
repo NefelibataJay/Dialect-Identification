@@ -10,10 +10,10 @@ from module.mydatasets import *
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="./exp/wav2vec2-base", help="The path or name of the pre-trained model")
+    parser.add_argument("--model_path", type=str, default="./exp/wavlm-base", help="The path or name of the pre-trained model")
     parser.add_argument("--manifest_path", type=str, default="./data", help="The path of the manifest file")
     parser.add_argument("--dataset_path", type=str, default="/root/DialectDataset/Datatang-Dialect", help="The path of the dataset")
-    parser.add_argument("--model_name", type=str, default="wav2vec2-dialect", help="The name of your trained model")
+    parser.add_argument("--model_name", type=str, default="wavlm-base-Fcnn-SL", help="The name of your trained model")
     parser.add_argument("--num_eopch", type=int, default=5, help="The number of training epochs")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="The number of gradient accumulation steps")
     parser.add_argument("--lr", type=float, default=3e-5, help="The learning rate of the optimizer")
@@ -71,7 +71,7 @@ def main(args):
                                 num_train_epochs = args.num_eopch,
                                 gradient_accumulation_steps=args.gradient_accumulation_steps,
                                 learning_rate=args.lr,
-                                warmup_ratio=0.1,
+                                # warmup_ratio=0.1,
                                 metric_for_best_model="accuracy",
                                 eval_accumulation_steps=20,
                                 gradient_checkpointing=True,
@@ -128,7 +128,7 @@ if __name__ == "__main__":
         # !! please change the code below to match your model
         feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
         # model = ***.from_pretrained(model_path)
-        model = Wav2Vec2ForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
+        model = WavLMForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
         # raise ValueError("You may be using a local directory to load models, but these models have different initializers, so you'll need to change the initializer in your code to match the model you need.")
     
     if args.freeze_feature_encoder:
