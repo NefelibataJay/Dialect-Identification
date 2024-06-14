@@ -10,11 +10,11 @@ from module.mydatasets import *
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="./exp/wavlm-base", help="The path or name of the pre-trained model")
+    parser.add_argument("--model_path", type=str, default="./exp/wav2vec-base", help="The path or name of the pre-trained model")
     parser.add_argument("--manifest_path", type=str, default="./data", help="The path of the manifest file")
     parser.add_argument("--dataset_path", type=str, default="/root/DialectDataset/Datatang-Dialect", help="The path of the dataset")
-    parser.add_argument("--model_name", type=str, default="wavlm-base-Fcnn-SL", help="The name of your trained model")
-    parser.add_argument("--num_eopch", type=int, default=5, help="The number of training epochs")
+    parser.add_argument("--model_name", type=str, default="wav2vec-base-Fcnn-SL", help="The name of your trained model")
+    parser.add_argument("--num_eopch", type=int, default=10, help="The number of training epochs")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="The number of gradient accumulation steps")
     parser.add_argument("--lr", type=float, default=3e-5, help="The learning rate of the optimizer")
     parser.add_argument("--freeze_feature_encoder", action="store_true", help="Whether to freeze the feature encoder")
@@ -50,11 +50,10 @@ def collate_fn(batch):
         sampling_rate=feature_extractor.sampling_rate,
         padding=True,
         return_tensors="pt"
-    )["input_values"]
+    )
 
     return {
-            # "input_features": speech_feature, # if you use whisper model
-            "input_values": speech_feature,
+            "input_values": speech_feature["input_values"],
             "labels": label,
         }
 
@@ -71,7 +70,7 @@ def main(args):
                                 num_train_epochs = args.num_eopch,
                                 gradient_accumulation_steps=args.gradient_accumulation_steps,
                                 learning_rate=args.lr,
-                                # warmup_ratio=0.1,
+                                warmup_ratio=0.1,
                                 metric_for_best_model="accuracy",
                                 eval_accumulation_steps=20,
                                 gradient_checkpointing=True,
@@ -120,18 +119,17 @@ if __name__ == "__main__":
             model = Wav2Vec2ForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
         elif model_path.startswith("facebook/hubert"):
             model = HubertForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
-        elif model_path.startswith("openai/whisper"):
-            model = WhisperForAudioClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
         else:
             model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
     else:
         # !! please change the code below to match your model
         feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
         # model = ***.from_pretrained(model_path)
-        model = WavLMForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
+        model = HubertForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
         # raise ValueError("You may be using a local directory to load models, but these models have different initializers, so you'll need to change the initializer in your code to match the model you need.")
     
     if args.freeze_feature_encoder:
+        print("==========freeze_feature_encoder===========")
         model.freeze_feature_encoder()
 
     # model.gradient_checkpointing_enable()
