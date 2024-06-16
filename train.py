@@ -6,18 +6,20 @@ from torch.utils.data import DataLoader
 from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, AutoModelForSequenceClassification, WavLMForSequenceClassification, HubertForSequenceClassification, Wav2Vec2ForSequenceClassification,WhisperForAudioClassification
 import evaluate
 import argparse
+from model.wav2vec2_grl import Wav2Vec2GRLClassification
 from module.mydatasets import *
 
 def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="./exp/wav2vec-base", help="The path or name of the pre-trained model")
+    parser = argparse.ArgumentParser() 
+    parser.add_argument("--model_path", type=str, default="./exp/wav2vec2-base", help="The path or name of the pre-trained model")
     parser.add_argument("--manifest_path", type=str, default="./data", help="The path of the manifest file")
     parser.add_argument("--dataset_path", type=str, default="/root/DialectDataset/Datatang-Dialect", help="The path of the dataset")
-    parser.add_argument("--model_name", type=str, default="wav2vec-base-Fcnn-SL", help="The name of your trained model")
+    parser.add_argument("--model_name", type=str, default="wav2vec2-base-Fcnn-SL-GRL", help="The name of your trained model")
     parser.add_argument("--num_eopch", type=int, default=10, help="The number of training epochs")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="The number of gradient accumulation steps")
     parser.add_argument("--lr", type=float, default=3e-5, help="The learning rate of the optimizer")
     parser.add_argument("--freeze_feature_encoder", action="store_true", help="Whether to freeze the feature encoder")
+    parser.add_argument("--grl", action="store_true", help="Whether to freeze the feature encoder")
     parser.add_argument("--batch_size",type=int, default=12, help="The number of training batch size")
     return parser.parse_args()
 
@@ -85,16 +87,17 @@ def main(args):
                     data_collator= collate_fn,
                     compute_metrics = eval_metric)
     print("Start training...")
-    trainer.train()
-    test(args, trainer)
+    # trainer.train()
+    trainer.evaluate()
+    # test(args, trainer)
     print("All done!")
 
-def test(args, trainer):
-    test_list = os.listdir(os.path.join(manifest_path,"TEST"))
+# def test(args, trainer):
+#     test_list = os.listdir(os.path.join(manifest_path,"TEST"))
 
-    for test_path in test_list:
-        test_dataset = MyDataset(os.path.join(manifest_path,"TEST",test_path), dataset_path=dataset_path)
-        trainer.predict(test_dataset)
+#     for test_path in test_list:
+#         test_dataset = MyDataset(os.path.join(manifest_path,"TEST",test_path), dataset_path=dataset_path)
+        # trainer.predict(test_dataset)
 
 
 if __name__ == "__main__":
@@ -125,13 +128,18 @@ if __name__ == "__main__":
         # !! please change the code below to match your model
         feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
         # model = ***.from_pretrained(model_path)
-        model = HubertForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
+        model = Wav2Vec2GRLClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
         # raise ValueError("You may be using a local directory to load models, but these models have different initializers, so you'll need to change the initializer in your code to match the model you need.")
     
     if args.freeze_feature_encoder:
         print("==========freeze_feature_encoder===========")
         model.freeze_feature_encoder()
 
+    if args.grl:
+        model.init_lamda(0.3)
+        model.init_speaker(len(train_dataset.speaker_dict))
+
     # model.gradient_checkpointing_enable()
 
     main(args)
+ 

@@ -39,7 +39,9 @@ class MyDataset(Dataset):
     def _parse_dataset(self):
         self.data_dict = []
         self.labels_dict = {'None': 0}
+        self.speaker_dict = {}
         count = 1
+        speaker_num = 0
         with open(self.manifest_path, "r", encoding='utf-8') as f:
             f.readline()
             for line in f.readlines():
@@ -51,11 +53,14 @@ class MyDataset(Dataset):
                 if label not in self.labels_dict:
                     self.labels_dict[label] = count
                     count += 1
+                if speaker not in self.speaker_dict:
+                    self.speaker_dict[speaker] = speaker_num
+                    speaker_num += 1
                 self.data_dict.append({
                     "id": id,
                     "audio_path": os.path.join(self.dataset_path, audio_path),
                     "label": self.labels_dict[label],
-                    "speaker": speaker,
+                    "speaker": self.speaker_dict[speaker],
                     "text": text,
                     "sex": self.sex_dict[sex]
                 })

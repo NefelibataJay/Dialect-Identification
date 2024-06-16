@@ -1,9 +1,11 @@
 from typing import Optional, Tuple, Union
 from transformers import Wav2Vec2PreTrainedModel, Wav2Vec2Model
+from transformers.modeling_outputs import SequenceClassifierOutput
 import torch
 from torch import nn
 
 from model.grl import *
+from module.grl_model_outputs import GRLModelOutputs
 
 _HIDDEN_STATES_START_POSITION = 2
 
@@ -23,16 +25,17 @@ class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
         self.classifier = nn.Linear(config.classifier_proj_size, config.num_labels)
         
         self.speaker_classifier = None
+        self.speaker_lamda = 0.3
 
         # Initialize weights and apply final processing
         self.post_init()
     
+    def init_lamda(self, lamda):
+        self.speaker_lamda = lamda
+
     def init_speaker(self, num_speaker):
-        self.speaker_classifier = NormalClassifier(self.config.classifier_proj_size, num_speaker, GRL=GRL)
-    
-    def set_lambda(self, lambda_):
-        self.speaker_classifier.set_lambda(lambda_)
-        
+        self.speaker_classifier = GRLClassifier(self.config.classifier_proj_size, num_speaker)
+        self.config.num_speaker = num_speaker
 
     def freeze_layers(self, num_layers_to_freeze: int):
         for param in self.wav2vec2.encoder.layers[num_layers_to_freeze:].parameters():
@@ -60,10 +63,11 @@ class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
         attention_mask: Optional[torch.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
         labels: Optional[torch.Tensor] = None,
         speaker_labels: Optional[torch.Tensor] = None,
     ) -> Tuple:
-        
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         output_hidden_states = True if self.config.use_weighted_layer_sum else output_hidden_states
 
         outputs = self.wav2vec2(
@@ -92,19 +96,29 @@ class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
             pooled_output = hidden_states.sum(dim=1) / padding_mask.sum(dim=1).view(-1, 1)
 
         logits = self.classifier(pooled_output)
-        
-        speaker_loss = None
-        if speaker_labels:
-            speaker_logits = self.speaker_classifier(pooled_output)
-            loss_fct = nn.CrossEntropyLoss(0.25)
-            loss = loss_fct(logits.view(-1, self.config.num_labels), labels.view(-1))
 
         loss = None
         if labels is not None:
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.config.num_labels), labels.view(-1))
 
-        output = (logits,) + outputs[_HIDDEN_STATES_START_POSITION:]
-        return ((loss,) + output) if loss is not None else output
+        speaker_loss = None
+        if speaker_labels is not None:
+            speaker_logits = self.speaker_classifier(pooled_output)
+            loss_fct = nn.CrossEntropyLoss()
+            speaker_loss = loss_fct(speaker_logits.view(-1, self.config.num_speaker), speaker_labels.view(-1))
+            loss += self.speaker_lamda * speaker_loss
+
+        if not return_dict:
+            output = (logits,) + outputs[_HIDDEN_STATES_START_POSITION:]
+            return ((loss,) + output) if loss is not None else output
+
+        return GRLModelOutputs(
+            loss=loss,
+            logits=logits,
+            domain_logits=speaker_logits,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
 
     
