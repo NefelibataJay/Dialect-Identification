@@ -103,6 +103,7 @@ class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
             loss = loss_fct(logits.view(-1, self.config.num_labels), labels.view(-1))
 
         speaker_loss = None
+        speaker_logits = None
         if speaker_labels is not None:
             speaker_logits = self.speaker_classifier(pooled_output)
             loss_fct = nn.CrossEntropyLoss()
@@ -116,9 +117,9 @@ class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
         return GRLModelOutputs(
             loss=loss,
             logits=logits,
-            domain_logits=speaker_logits,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
+            # domain_logits=speaker_logits
         )
 
     

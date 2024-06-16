@@ -23,7 +23,7 @@ class MyDataset(Dataset):
 
     def __getitem__(self, idx):
         speech_feature = self._parse_audio(self.data_dict[idx]["audio_path"])
-        sex = self.data_dict[idx]["sex"]
+        # sex = self.data_dict[idx]["sex"]
         label = self.data_dict[idx]["label"]
         speaker = int(self.data_dict[idx]["speaker"])
 
@@ -31,7 +31,7 @@ class MyDataset(Dataset):
         # transcript = self._parse_transcript(self.data_dict[idx]["text"])
         # target_lengths = len(transcript)
 
-        return speech_feature, label, sex, speaker
+        return speech_feature, label, speaker
 
     def __len__(self):
         return len(self.data_dict)

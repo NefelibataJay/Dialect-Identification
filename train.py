@@ -27,7 +27,7 @@ acc_metric = evaluate.load("./metrics/accuracy")
 def eval_metric(eval_predict):
     predictions, labels = eval_predict
     predictions = predictions[0].argmax(axis=-1)
-    accuracy = acc_metric.compute(predictions=predictions, references=labels)
+    accuracy = acc_metric.compute(predictions=predictions, references=labels[0])
     return {
         "accuracy": accuracy["accuracy"],
     }
@@ -44,6 +44,7 @@ def collate_fn(batch):
     """
     speech_feature = [i[0].numpy() for i in batch]
     label = torch.LongTensor([i[1] for i in batch])
+    speaker = torch.LongTensor([i[2] for i in batch])
 
     # TODO add FBANK and MFCC feature
 
@@ -57,6 +58,7 @@ def collate_fn(batch):
     return {
             "input_values": speech_feature["input_values"],
             "labels": label,
+            "speaker_labels": speaker,
         }
 
 def main(args):
@@ -87,8 +89,8 @@ def main(args):
                     data_collator= collate_fn,
                     compute_metrics = eval_metric)
     print("Start training...")
-    # trainer.train()
-    trainer.evaluate()
+    trainer.train()
+    # trainer.evaluate()
     # test(args, trainer)
     print("All done!")
 
