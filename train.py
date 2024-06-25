@@ -14,10 +14,10 @@ def get_args():
     parser.add_argument("--model_path", type=str, default="./exp/wav2vec2-base", help="The path or name of the pre-trained model")
     parser.add_argument("--manifest_path", type=str, default="./data", help="The path of the manifest file")
     parser.add_argument("--dataset_path", type=str, default="/root/KeSpeech/", help="The path of the dataset")
-    parser.add_argument("--model_name", type=str, default="wav2vec2-base-FT", help="The name of your trained model")
+    parser.add_argument("--model_name", type=str, default="wav2vec2-base-FT-Dialect", help="The name of your trained model")
     parser.add_argument("--num_eopch", type=int, default=10, help="The number of training epochs")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="The number of gradient accumulation steps")
-    parser.add_argument("--lr", type=float, default=3e-5, help="The learning rate of the optimizer")
+    parser.add_argument("--lr", type=float, default=3e-4, help="The learning rate of the optimizer")
     parser.add_argument("--freeze_feature_encoder", action="store_true", help="Whether to freeze the feature encoder")
     parser.add_argument("--grl", action="store_true", help="Whether to freeze the feature encoder")
     return parser.parse_args()
@@ -73,7 +73,7 @@ def main(args):
                                 learning_rate=args.lr,
                                 warmup_ratio=0.1,
                                 metric_for_best_model="accuracy",
-                                eval_accumulation_steps=20,
+                                eval_accumulation_steps=10,
                                 gradient_checkpointing=True,
                                 load_best_model_at_end=True
                                 )
@@ -92,9 +92,7 @@ def main(args):
     print("All done!")
 
 def test(trainer):
-    test_file = os.path.join(manifest_path,"test.dev")
-
-    test_dataset = MyDataset(test_file, dataset_path=dataset_path)
+    test_dataset = MyDataset(os.path.join(manifest_path,"test.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
     out = trainer.predict(test_dataset)
     print(out.metrics)
 
@@ -106,14 +104,11 @@ if __name__ == "__main__":
     model_name = args.model_name
     output_dir = os.path.join("./exp", model_name)
 
-    train_dataset = MyDataset(
-        manifest_path=os.path.join(manifest_path,"train.tsv"), dataset_path=dataset_path, speed_perturb=True)
+    train_dataset = MyDataset(manifest_path=os.path.join(manifest_path,"train.tsv"), label_path=os.path.join(manifest_path,"labels.txt"), dataset_path=dataset_path, speed_perturb=True)
+    dev_dataset = MyDataset(manifest_path=os.path.join(manifest_path,"dev.tsv"), label_path=os.path.join(manifest_path,"labels.txt"), dataset_path=dataset_path)
 
-    dev_dataset = MyDataset(
-        manifest_path=os.path.join(manifest_path,"dev.tsv"), dataset_path=dataset_path)
-
+    feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
     if not os.path.exists(model_path):
-        feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
         if model_path.startswith("microsoft/wavlm"):
             model = WavLMForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
         elif model_path.startswith("facebook/wav2vec2"):
@@ -123,9 +118,8 @@ if __name__ == "__main__":
         else:
             model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
     else:
-        # !! please change the code below to match your model
-        feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
         try:
+            # !! please change the code below to match your model
             # model = ***.from_pretrained(model_path)
             model = Wav2Vec2ForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
         except Exception:
@@ -138,6 +132,9 @@ if __name__ == "__main__":
     if args.grl:
         model.init_lamda(0.1)
         model.init_speaker(len(train_dataset.speaker_dict))
+
+    # model.labels_dict = train_dataset.labels_dict
+    # model.speaker_dict = train_dataset.speaker_dict
 
     main(args)
  
