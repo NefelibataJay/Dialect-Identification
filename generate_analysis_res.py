@@ -22,7 +22,7 @@ def save_tsne_res(logits, labels, idx, state):
     plt.close()
 
 if __name__ == "__main__":
-    root_file = f"./analysis_res/wav2vec2-base-Fcnn-SL/"
+    root_file = f"./analysis_res/wav2vec2-base-FT-Dialect/"
 
     for idx in tqdm(range(13)):
         path = os.path.join(root_file, f"layer_{idx}")
@@ -35,11 +35,11 @@ if __name__ == "__main__":
                 label, speaker, hidden_state = line.strip().split("\t")
                 hidden_states.append(np.array(ast.literal_eval(hidden_state)))
                 labels.append(int(label))
-                speakers.append(int(speakers))
+                speakers.append(int(speaker))
             
         hidden_states = np.array(hidden_states)
         labels = np.array(labels)
         speakers = np.array(speakers)
         save_tsne_res(hidden_states, labels, idx, "dialect")
-        save_tsne_res(hidden_states, speakers, idx, "dialect")
+        save_tsne_res(hidden_states, speakers, idx, "speaker")
 

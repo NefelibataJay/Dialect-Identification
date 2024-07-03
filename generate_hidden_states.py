@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification
+from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification, HubertForSequenceClassification
 from torch.utils.data import DataLoader
 import os
 from sklearn.manifold import TSNE
@@ -10,17 +10,21 @@ from tqdm import tqdm
 
 from module.mydatasets import MyDataset
 
-root_file = f"./analysis_res/wav2vec2-base-Fcnn-SL/"
-model_path = "./exp/wav2vec2-base-Fcnn-SL/checkpoint-23704"
-dataset_path = "/root/DialectDataset/Datatang-Dialect"
-dataset = MyDataset(manifest_path=os.path.join("./data","dev.tsv"), dataset_path=dataset_path)
+root_file = f"./analysis_res/hubert-base-FT-Dialect"
+model_path = "./exp/hubert-base-FT-Dialect"
+dataset_path = "/root/KeSpeech/"
+manifest_path = "./data/dialect"
+dataset = MyDataset(manifest_path=os.path.join(manifest_path,"dev.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
 
-with open(os.path.join(root_file, "label2dialect"), "a", encoding="utf-8") as f:
+if not os.path.exists(root_file):
+    os.makedirs(root_file)
+
+with open(os.path.join(root_file, "label2dialect"), "w", encoding="utf-8") as f:
     for key,value in dataset.labels_dict.items():
         f.write(f"{value} {key}\n")
 
 feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
-model = Wav2Vec2ForSequenceClassification.from_pretrained(model_path, num_labels=len(dataset.labels_dict))
+model = HubertForSequenceClassification.from_pretrained(model_path, num_labels=len(dataset.labels_dict))
 
 model.eval()
 
@@ -56,7 +60,7 @@ def collate_fn(batch):
 dataloaders = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
 
 # 记录模型权重
-with open(os.path.join(root_file, "layer_weights"), "a", encoding="utf-8") as f:
+with open(os.path.join(root_file, "layer_weights"), "w", encoding="utf-8") as f:
     f.write(f"{torch.nn.functional.softmax(model.layer_weights, dim=-1).detach()}\n")
 
 for batch in tqdm(dataloaders):
