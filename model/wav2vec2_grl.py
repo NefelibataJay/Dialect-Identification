@@ -25,7 +25,7 @@ class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
         self.classifier = nn.Linear(config.classifier_proj_size, config.num_labels)
         
         self.speaker_classifier = None
-        self.speaker_lamda = 0.3
+        self.speaker_lamda = 0
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -99,7 +99,7 @@ class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
 
         loss = None
         if labels is not None:
-            loss_fct = nn.CrossEntropyLoss()
+            loss_fct = nn.CrossEntropyLoss(label_smoothing=0.1)
             loss = loss_fct(logits.view(-1, self.config.num_labels), labels.view(-1))
 
         speaker_loss = None
