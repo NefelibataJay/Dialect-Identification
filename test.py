@@ -38,18 +38,14 @@ def collate_fn(batch):
         return_tensors="pt"
     )
 
-    return {
-            "input_values": speech_feature["input_values"],
-            "labels": label,
-            # "speaker_labels": sex,
-        }
+    return  speech_feature["input_values"],label
 
 if __name__ == "__main__":
     manifest_path = "./data/dialect"
     dataset_path = "/root/KeSpeech/"
     model_path = "./exp/wavlm-base-FT-Dialect"
-    dataset = MyDataset(os.path.join(manifest_path,"test.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
-    data_loader = DataLoader(dataset=dataset, batch_size=16, collate_fn=collate_fn,shuffle=False)
+    dataset = MyDataset(os.path.join(manifest_path,"test_balance.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
+    data_loader = DataLoader(dataset=dataset, batch_size=8, collate_fn=collate_fn,shuffle=False)
 
     feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
 
@@ -58,20 +54,25 @@ if __name__ == "__main__":
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model.to(device)
 
-    accuracies = 0.0
-    count = 0
+    
+    lbs = []
+    preds = []
     model.eval()
     for batch in data_loader:
-        count+=1
-        for k,v in batch.items():
-            v = v.to(device)
-        
-        output = model(**batch)
-        labels = batch["labels"]
-        predictions = output.logits.argmax(axis=-1)
-        accuracy = acc_metric.compute(predictions=predictions, references=labels)
-        accuracies += accuracies
+        input_values,labels= batch
+        input_values = input_values.to(device)
+        labels = labels.to(device)
+        output = model(input_values=input_values, labels=labels)
 
-    print(f"=== accuracy: {accuracies/count} ===")
+        # batch = {k: v.to(device) for k,v in batch.items()}
+        # output = model(**batch)
+
+        lbs.extend(labels.cpu())
+        preds.extend(output.logits.cpu().argmax(axis=-1))
+        torch.cuda.empty_cache()
+
+    accuracy = acc_metric.compute(predictions=preds, references=lbs)
+
+    print(f"=== accuracy: {accuracy} ===")
 
 
