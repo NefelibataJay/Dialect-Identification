@@ -10,6 +10,20 @@ from tqdm import tqdm
 
 tsne = TSNE(n_components=2, random_state=42, learning_rate=200, init='pca',)
 
+# custom_palette = sns.color_palette("tab10", 10)
+custom_palette = [
+    '#1f77b4',  # 蓝色
+    '#ff7f0e',  # 橙色
+    '#2ca02c',  # 绿色
+    '#d62728',  # 红色
+    '#9467bd',  # 紫色
+    '#8c564b',  # 棕色
+    '#e377c2',  # 粉色
+    '#7f7f7f',  # 灰色
+    '#bcbd22',  # 黄色
+    # '#17becf'   # 青色
+]
+
 def plot_xy(logits, label, idx, state):
     """绘图"""
     x_values = tsne.fit_transform(logits)
@@ -17,28 +31,14 @@ def plot_xy(logits, label, idx, state):
     for(i, l) in enumerate(label):
         df.loc[i, 'label'] = label_dict[l]
     # df['label'] = label
-    sns.scatterplot(x="x", y="y", hue="label", data=df, palette='deep', s=10)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left',)
-    plt.tight_layout()
+    sns.scatterplot(x="x", y="y", hue="label", data=df, palette=custom_palette, s=10)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.title(f"T-SNE Layer {idx}")
 
     # 保存图片
     out_path = os.path.join(root_file, f"layer_{idx}", f"tsne_layer_{state}.png")
-    plt.savefig(out_path,dpi=300)
-    plt.close()
-
-def save_tsne_res(logits, labels, idx, state):
-    # 进行TSNE降维
-    tsne_result = tsne.fit_transform(logits)
-
-    # 绘制散点图
-    plt.figure()
-    plt.scatter(tsne_result[:, 0], tsne_result[:, 1], c=labels, cmap="viridis",s=3)
-    plt.title(f"T-SNE Layer {idx}")
-
-    # 保存图片
-    out_path = os.path.join(root_file, f"layer_{idx}", f"tsne_layer_{state}.png")
-    plt.savefig(out_path,dpi=300)
+    plt.savefig(out_path,dpi=300, bbox_inches='tight')
     plt.close()
 
 if __name__ == "__main__":
@@ -67,7 +67,5 @@ if __name__ == "__main__":
         hidden_states = np.array(hidden_states)
         labels = np.array(labels)
         speakers = np.array(speakers)
-        # save_tsne_res(hidden_states, labels, idx, "dialect")
         plot_xy(hidden_states, labels, idx, "dialect")
-        # save_tsne_res(hidden_states, speakers, idx, "speaker")
 

@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification, HubertForSequenceClassification
+from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification, HubertForSequenceClassification,WavLMForSequenceClassification
 from torch.utils.data import DataLoader
 import os
 from sklearn.manifold import TSNE
@@ -10,8 +10,8 @@ from tqdm import tqdm
 
 from module.mydatasets import MyDataset
 
-root_file = f"./analysis_res/hubert-base-FT-Dialect"
-model_path = "./exp/hubert-base-FT-Dialect"
+root_file = f"./analysis_res/wavlm-base-FT-Dialect"
+model_path = "./exp/wavlm-base-FT-Dialect"
 dataset_path = "/root/KeSpeech/"
 manifest_path = "./data/dialect"
 dataset = MyDataset(manifest_path=os.path.join(manifest_path,"test_balance.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
@@ -24,7 +24,7 @@ with open(os.path.join(root_file, "label2dialect"), "w", encoding="utf-8") as f:
         f.write(f"{value} {key}\n")
 
 feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
-model = HubertForSequenceClassification.from_pretrained(model_path, num_labels=len(dataset.labels_dict))
+model = WavLMForSequenceClassification.from_pretrained(model_path, num_labels=len(dataset.labels_dict))
 
 model.eval()
 
@@ -41,6 +41,7 @@ def collate_fn(batch):
     speech_feature = [i[0].numpy() for i in batch]
     label = torch.LongTensor([i[1] for i in batch])
     speaker = torch.LongTensor([i[2] for i in batch])
+    sex = torch.LongTensor([i[3] for i in batch])
 
     # TODO add FBANK and MFCC feature
 
@@ -54,7 +55,7 @@ def collate_fn(batch):
     return {
             "input_values": speech_feature["input_values"],
             "labels": label,
-            "speaker_labels": speaker,
+            "speaker_labels": sex,
         }
 
 dataloaders = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)

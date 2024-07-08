@@ -3,7 +3,7 @@ import torch
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
-from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, AutoModelForSequenceClassification, WavLMForSequenceClassification, HubertForSequenceClassification, Wav2Vec2ForSequenceClassification,WhisperForAudioClassification
+from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, AutoModelForSequenceClassification, WavLMForSequenceClassification, HubertForSequenceClassification, Wav2Vec2ForSequenceClassification
 import evaluate
 import argparse
 from model.wav2vec2_grl import Wav2Vec2GRLClassification
