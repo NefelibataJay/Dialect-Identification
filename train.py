@@ -12,9 +12,9 @@ from module.mydatasets import *
 def get_args():
     parser = argparse.ArgumentParser() 
     parser.add_argument("--model_path", type=str, default="./exp/wav2vec2-base", help="The path or name of the pre-trained model")
-    parser.add_argument("--manifest_path", type=str, default="./data", help="The path of the manifest file")
+    parser.add_argument("--manifest_path", type=str, default="./data/dialect", help="The path of the manifest file")
     parser.add_argument("--dataset_path", type=str, default="/root/KeSpeech/", help="The path of the dataset")
-    parser.add_argument("--model_name", type=str, default="wav2vec2-base-FT-Dialect", help="The name of your trained model")
+    parser.add_argument("--model_name", type=str, default="wav2vec2-base-FT-Dialect-GRL", help="The name of your trained model")
     parser.add_argument("--num_eopch", type=int, default=10, help="The number of training epochs")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="The number of gradient accumulation steps")
     parser.add_argument("--lr", type=float, default=3e-4, help="The learning rate of the optimizer")
@@ -44,6 +44,8 @@ def collate_fn(batch):
     speech_feature = [i[0].numpy() for i in batch]
     label = torch.LongTensor([i[1] for i in batch])
     speaker = torch.LongTensor([i[2] for i in batch])
+    sex = torch.LongTensor([i[3] for i in batch])
+
 
     # TODO add FBANK and MFCC feature
 
@@ -57,7 +59,7 @@ def collate_fn(batch):
     return {
             "input_values": speech_feature["input_values"],
             "labels": label,
-            # "speaker_labels": speaker,
+            "speaker_labels": sex,
         }
 
 def main(args):
@@ -65,6 +67,8 @@ def main(args):
     # model.to(device)
     train_args = TrainingArguments(output_dir=output_dir, 
                                 auto_find_batch_size=True,
+                                # per_device_train_batch_size=16,
+                                # per_device_eval_batch_size=8,
                                 logging_steps=50,
                                 evaluation_strategy="epoch",
                                 save_strategy="epoch",
@@ -88,7 +92,7 @@ def main(args):
     print("Start training...")
     trainer.train()
     trainer.save_model()
-    test(trainer)
+    # test(trainer)
     print("All done!")
 
 def test(trainer):
@@ -121,7 +125,7 @@ if __name__ == "__main__":
         try:
             # !! please change the code below to match your model
             # model = ***.from_pretrained(model_path)
-            model = Wav2Vec2ForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
+            model = Wav2Vec2GRLClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
         except Exception:
             raise ValueError("You may be using a local directory to load models, but these models have different initializers, so you'll need to change the initializer in your code to match the model you need.")
     
@@ -131,7 +135,9 @@ if __name__ == "__main__":
 
     if args.grl:
         model.init_lamda(0.1)
-        model.init_speaker(len(train_dataset.speaker_dict))
+        # model.init_speaker(len(train_dataset.speaker_dict))
+        model.init_speaker(len(train_dataset.sex_dict))
+
 
     # model.labels_dict = train_dataset.labels_dict
     # model.speaker_dict = train_dataset.speaker_dict

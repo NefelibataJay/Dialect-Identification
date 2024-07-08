@@ -43,13 +43,13 @@ def collate_fn(batch):
 if __name__ == "__main__":
     manifest_path = "./data/dialect"
     dataset_path = "/root/KeSpeech/"
-    model_path = "./exp/wavlm-base-FT-Dialect"
-    dataset = MyDataset(os.path.join(manifest_path,"test_balance.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
+    model_path = "./exp/hubert-base-FT-Dialect"
+    dataset = MyDataset(os.path.join(manifest_path,"test.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
     data_loader = DataLoader(dataset=dataset, batch_size=8, collate_fn=collate_fn,shuffle=False)
 
     feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
 
-    model = WavLMForSequenceClassification.from_pretrained(model_path, num_labels=len(dataset.labels_dict))
+    model = HubertForSequenceClassification.from_pretrained(model_path, num_labels=len(dataset.labels_dict))
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model.to(device)

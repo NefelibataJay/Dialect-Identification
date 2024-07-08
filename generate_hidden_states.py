@@ -14,7 +14,7 @@ root_file = f"./analysis_res/hubert-base-FT-Dialect"
 model_path = "./exp/hubert-base-FT-Dialect"
 dataset_path = "/root/KeSpeech/"
 manifest_path = "./data/dialect"
-dataset = MyDataset(manifest_path=os.path.join(manifest_path,"dev.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
+dataset = MyDataset(manifest_path=os.path.join(manifest_path,"test_balance.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
 
 if not os.path.exists(root_file):
     os.makedirs(root_file)
