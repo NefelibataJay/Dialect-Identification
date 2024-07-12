@@ -1,5 +1,5 @@
 from typing import Optional, Tuple, Union
-from transformers import Wav2Vec2PreTrainedModel, Wav2Vec2Model
+from transformers import Wav2Vec2PreTrainedModel, Wav2Vec2Model,HubertPreTrainedModel,WavLMPreTrainedModel,HubertModel, WavLMModel
 from transformers.modeling_outputs import SequenceClassifierOutput
 import torch
 from torch import nn
@@ -9,7 +9,7 @@ from module.grl_model_outputs import GRLModelOutputs
 
 _HIDDEN_STATES_START_POSITION = 2
 
-class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
+class GRLClassification(Wav2Vec2PreTrainedModel, WavLMPreTrainedModel, HubertPreTrainedModel):
     def __init__(self, config, *args, **kwargs):
         super().__init__(config)
 
@@ -17,7 +17,9 @@ class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
             raise ValueError(
                 "Sequence classification does not support the use of Wav2Vec2 adapters (config.add_adapter=True)"
             )
-        self.wav2vec2 = Wav2Vec2Model(config)
+        # self.wav2vec2 = Wav2Vec2Model(config)
+        self.hubert = HubertModel(config)
+        # self.wavlm = WavLMModel(config)
         num_layers = config.num_hidden_layers + 1  # transformer layers + input embeddings
         if config.use_weighted_layer_sum:
             self.layer_weights = nn.Parameter(torch.ones(num_layers) / num_layers)
@@ -70,7 +72,7 @@ class Wav2Vec2GRLClassification(Wav2Vec2PreTrainedModel):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         output_hidden_states = True if self.config.use_weighted_layer_sum else output_hidden_states
 
-        outputs = self.wav2vec2(
+        outputs = self.hubert(
             input_values,
             attention_mask=attention_mask,
             output_attentions=output_attentions,

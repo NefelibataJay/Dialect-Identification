@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, AutoModelForSequenceClassification, WavLMForSequenceClassification, HubertForSequenceClassification, Wav2Vec2ForSequenceClassification
 import evaluate
 import argparse
-from model.wav2vec2_grl import Wav2Vec2GRLClassification
+from model.grl_classification import GRLClassification
 from module.mydatasets import *
 
 def get_args():
@@ -26,7 +26,7 @@ acc_metric = evaluate.load("./metrics/accuracy")
 def eval_metric(eval_predict):
     predictions, labels = eval_predict
     predictions = predictions[0].argmax(axis=-1)
-    accuracy = acc_metric.compute(predictions=predictions, references=labels)
+    accuracy = acc_metric.compute(predictions=predictions, references=labels[0])
     return {
         "accuracy": accuracy["accuracy"],
     }
@@ -91,14 +91,10 @@ def main(args):
                     compute_metrics = eval_metric)
     print("Start training...")
     trainer.train()
+    # trainer.evaluate()
     trainer.save_model()
     # test(trainer)
     print("All done!")
-
-def test(trainer):
-    test_dataset = MyDataset(os.path.join(manifest_path,"test.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
-    out = trainer.predict(test_dataset)
-    print(out.metrics)
 
 if __name__ == "__main__":
     args = get_args()
@@ -125,7 +121,7 @@ if __name__ == "__main__":
         try:
             # !! please change the code below to match your model
             # model = ***.from_pretrained(model_path)
-            model = Wav2Vec2GRLClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
+            model = GRLClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
         except Exception:
             raise ValueError("You may be using a local directory to load models, but these models have different initializers, so you'll need to change the initializer in your code to match the model you need.")
     
