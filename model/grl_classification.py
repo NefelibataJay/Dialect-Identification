@@ -7,9 +7,10 @@ from torch import nn
 from model.grl import *
 from module.grl_model_outputs import GRLModelOutputs
 
-_HIDDEN_STATES_START_POSITION = 2
+# hubert _HIDDEN_STATES_START_POSITION = 1, wav2vec2 and wavlm _HIDDEN_STATES_START_POSITION = 2
+_HIDDEN_STATES_START_POSITION = 1
 
-class GRLClassification(Wav2Vec2PreTrainedModel, WavLMPreTrainedModel, HubertPreTrainedModel):
+class GRLClassification(HubertPreTrainedModel):
     def __init__(self, config, *args, **kwargs):
         super().__init__(config)
 
@@ -17,9 +18,7 @@ class GRLClassification(Wav2Vec2PreTrainedModel, WavLMPreTrainedModel, HubertPre
             raise ValueError(
                 "Sequence classification does not support the use of Wav2Vec2 adapters (config.add_adapter=True)"
             )
-        # self.wav2vec2 = Wav2Vec2Model(config)
         self.hubert = HubertModel(config)
-        # self.wavlm = WavLMModel(config)
         num_layers = config.num_hidden_layers + 1  # transformer layers + input embeddings
         if config.use_weighted_layer_sum:
             self.layer_weights = nn.Parameter(torch.ones(num_layers) / num_layers)
@@ -39,9 +38,9 @@ class GRLClassification(Wav2Vec2PreTrainedModel, WavLMPreTrainedModel, HubertPre
         self.speaker_classifier = GRLClassifier(self.config.classifier_proj_size, num_speaker)
         self.config.num_speaker = num_speaker
 
-    def freeze_layers(self, num_layers_to_freeze: int):
-        for param in self.wav2vec2.encoder.layers[num_layers_to_freeze:].parameters():
-            param.requires_grad = False
+    # def freeze_layers(self, num_layers_to_freeze: int):
+    #     for param in self.wav2vec2.encoder.layers[num_layers_to_freeze:].parameters():
+    #         param.requires_grad = False
         
     
     def freeze_feature_encoder(self):
@@ -49,15 +48,15 @@ class GRLClassification(Wav2Vec2PreTrainedModel, WavLMPreTrainedModel, HubertPre
         Calling this function will disable the gradient computation for the feature encoder so that its parameter will
         not be updated during training.
         """
-        self.wav2vec2.feature_extractor._freeze_parameters()
+        self.hubert.feature_extractor._freeze_parameters()
         
-    def freeze_base_model(self):
-        """
-        Calling this function will disable the gradient computation for the base model so that its parameters will not
-        be updated during training. Only the classification head will be updated.
-        """
-        for param in self.wav2vec2.parameters():
-            param.requires_grad = False
+    # def freeze_base_model(self):
+    #     """
+    #     Calling this function will disable the gradient computation for the base model so that its parameters will not
+    #     be updated during training. Only the classification head will be updated.
+    #     """
+    #     for param in self.wav2vec2.parameters():
+    #         param.requires_grad = False
             
     def forward(
         self,

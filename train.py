@@ -11,10 +11,10 @@ from module.mydatasets import *
 
 def get_args():
     parser = argparse.ArgumentParser() 
-    parser.add_argument("--model_path", type=str, default="./exp/wav2vec2-base", help="The path or name of the pre-trained model")
+    parser.add_argument("--model_path", type=str, default="./exp/hubert-base", help="The path or name of the pre-trained model")
     parser.add_argument("--manifest_path", type=str, default="./data/dialect", help="The path of the manifest file")
     parser.add_argument("--dataset_path", type=str, default="/root/KeSpeech/", help="The path of the dataset")
-    parser.add_argument("--model_name", type=str, default="wav2vec2-base-FT-Dialect-GRL", help="The name of your trained model")
+    parser.add_argument("--model_name", type=str, default="hubert-base-FT-Dialect-GRL", help="The name of your trained model")
     parser.add_argument("--num_eopch", type=int, default=10, help="The number of training epochs")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="The number of gradient accumulation steps")
     parser.add_argument("--lr", type=float, default=3e-4, help="The learning rate of the optimizer")
