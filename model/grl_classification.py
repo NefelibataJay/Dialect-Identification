@@ -26,18 +26,14 @@ class GRLClassification(HubertPreTrainedModel):
         self.classifier = nn.Linear(config.classifier_proj_size, config.num_labels)
         
         self.speaker_classifier = None
-        self.speaker_lamda = 0
+        self.speaker_classifier = GRLClassifier(config.classifier_proj_size, config.num_speaker)
+        self.speaker_lamda = config.lamda
+
+        self.config = config
 
         # Initialize weights and apply final processing
         self.post_init()
     
-    def init_lamda(self, lamda):
-        self.speaker_lamda = lamda
-
-    def init_speaker(self, num_speaker):
-        self.speaker_classifier = GRLClassifier(self.config.classifier_proj_size, num_speaker)
-        self.config.num_speaker = num_speaker
-
     # def freeze_layers(self, num_layers_to_freeze: int):
     #     for param in self.wav2vec2.encoder.layers[num_layers_to_freeze:].parameters():
     #         param.requires_grad = False
