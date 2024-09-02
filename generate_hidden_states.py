@@ -1,5 +1,6 @@
 import torch
-from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification, HubertForSequenceClassification,WavLMForSequenceClassification
+from transformers import AutoFeatureExtractor,AutoConfig, Wav2Vec2ForSequenceClassification, HubertForSequenceClassification,WavLMForSequenceClassification
+from transformers import Wav2Vec2Config, HubertConfig, WavLMConfig, AutoConfig
 from torch.utils.data import DataLoader
 import os
 from sklearn.manifold import TSNE
@@ -7,11 +8,11 @@ from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-
+from model.grl_classification import GRLClassification
 from module.mydatasets import MyDataset
 
-root_file = f"./analysis_res/wavlm-base-FT-Dialect"
-model_path = "./exp/wavlm-base-FT-Dialect"
+root_file = f"./analysis_res/wavlm-base-FT-Dialect-GRL"
+model_path = "exp/wavlm-base-FT-Dialect-GRL"
 dataset_path = "/root/KeSpeech/"
 manifest_path = "./data/dialect"
 dataset = MyDataset(manifest_path=os.path.join(manifest_path,"test_balance.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
@@ -23,8 +24,12 @@ with open(os.path.join(root_file, "label2dialect"), "w", encoding="utf-8") as f:
     for key,value in dataset.labels_dict.items():
         f.write(f"{value} {key}\n")
 
+
 feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
-model = WavLMForSequenceClassification.from_pretrained(model_path, num_labels=len(dataset.labels_dict))
+model_path = os.path.join(os.getcwd(), model_path)
+
+config = AutoConfig.from_pretrained(model_path)
+model = GRLClassification.from_pretrained(model_path,config)
 
 model.eval()
 

@@ -4,6 +4,7 @@ from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, AutoModelForSequenceClassification, WavLMForSequenceClassification, HubertForSequenceClassification, Wav2Vec2ForSequenceClassification
+from transformers import Wav2Vec2Config, HubertConfig, WavLMConfig, AutoConfig
 import evaluate
 import argparse
 from model.grl_classification import GRLClassification
@@ -14,10 +15,10 @@ def get_args():
     parser.add_argument("--model_path", type=str, default="./exp/hubert-base", help="The path or name of the pre-trained model")
     parser.add_argument("--manifest_path", type=str, default="./data/dialect", help="The path of the manifest file")
     parser.add_argument("--dataset_path", type=str, default="/root/KeSpeech/", help="The path of the dataset")
-    parser.add_argument("--model_name", type=str, default="hubert-base-FT-Dialect-GRL", help="The name of your trained model")
+    parser.add_argument("--model_name", type=str, default="hubert-base-FT-Dialect-GRL-1", help="The name of your trained model")
     parser.add_argument("--num_eopch", type=int, default=10, help="The number of training epochs")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="The number of gradient accumulation steps")
-    parser.add_argument("--lr", type=float, default=3e-4, help="The learning rate of the optimizer")
+    parser.add_argument("--lr", type=float, default=1e-3, help="The learning rate of the optimizer")
     parser.add_argument("--freeze_feature_encoder", action="store_true", help="Whether to freeze the feature encoder")
     parser.add_argument("--grl", action="store_true", help="Whether to freeze the feature encoder")
     return parser.parse_args()
@@ -93,6 +94,7 @@ def main(args):
     trainer.train()
     # trainer.evaluate()
     trainer.save_model()
+    torch.save(model.state_dict(), os.path.join(output_dir, "model.pt"))
     # test(trainer)
     print("All done!")
 
@@ -108,32 +110,31 @@ if __name__ == "__main__":
     dev_dataset = MyDataset(manifest_path=os.path.join(manifest_path,"dev.tsv"), label_path=os.path.join(manifest_path,"labels.txt"), dataset_path=dataset_path)
 
     feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
+    config = AutoConfig.from_pretrained(model_path)
+    config.num_labels = len(train_dataset.labels_dict)
+    config.lamda = 0.1
+    config.num_speaker = len(train_dataset.sex_dict)
+
     if not os.path.exists(model_path):
         if model_path.startswith("microsoft/wavlm"):
-            model = WavLMForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
+            model = WavLMForSequenceClassification.from_pretrained(model_path,config)
         elif model_path.startswith("facebook/wav2vec2"):
-            model = Wav2Vec2ForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
+            model = Wav2Vec2ForSequenceClassification.from_pretrained(model_path,config)
         elif model_path.startswith("facebook/hubert"):
-            model = HubertForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
+            model = HubertForSequenceClassification.from_pretrained(model_path,config)
         else:
-            model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
+            model = AutoModelForSequenceClassification.from_pretrained(model_path,config)
     else:
         try:
             # !! please change the code below to match your model
-            # model = ***.from_pretrained(model_path)
-            model = GRLClassification.from_pretrained(model_path, num_labels=len(train_dataset.labels_dict))
+            # model = ***.from_pretrained(config)
+            model = GRLClassification.from_pretrained(model_path,config,num_labels=config.num_labels,num_speaker=config.num_speaker,lamda=config.lamda)
         except Exception:
             raise ValueError("You may be using a local directory to load models, but these models have different initializers, so you'll need to change the initializer in your code to match the model you need.")
     
     if args.freeze_feature_encoder:
         print("==========freeze_feature_encoder===========")
         model.freeze_feature_encoder()
-
-    if args.grl:
-        model.init_lamda(0.1)
-        # model.init_speaker(len(train_dataset.speaker_dict))
-        model.init_speaker(len(train_dataset.sex_dict))
-
 
     # model.labels_dict = train_dataset.labels_dict
     # model.speaker_dict = train_dataset.speaker_dict

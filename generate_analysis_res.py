@@ -28,8 +28,12 @@ def plot_xy(logits, label, idx, state):
     """绘图"""
     x_values = tsne.fit_transform(logits)
     df = pd.DataFrame(x_values, columns=['x', 'y'])
-    for(i, l) in enumerate(label):
-        df.loc[i, 'label'] = label_dict[l]
+    if state == "dialect":
+        for(i, l) in enumerate(label):
+            df.loc[i, 'label'] = label_dict[l]
+    elif state == "speaker":
+        for(i, l) in enumerate(label):
+            df.loc[i, 'label'] = sex_dict[l]
     # df['label'] = label
     sns.scatterplot(x="x", y="y", hue="label", data=df, palette=custom_palette, s=10)
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
@@ -42,8 +46,8 @@ def plot_xy(logits, label, idx, state):
     plt.close()
 
 if __name__ == "__main__":
-    root_file = f"./analysis_res/hubert-base-FT-Dialect/"
-
+    root_file = f"./analysis_res/wavlm-base-FT-Dialect-GRL"
+    sex_dict = {1:"Male", 2:"Female"}
     label_dict = {}
 
     with open(os.path.join(root_file, "label2dialect"), "r", encoding="utf-8") as f:
@@ -68,4 +72,6 @@ if __name__ == "__main__":
         labels = np.array(labels)
         speakers = np.array(speakers)
         plot_xy(hidden_states, labels, idx, "dialect")
+
+        plot_xy(hidden_states, speakers, idx, "speaker")
 
