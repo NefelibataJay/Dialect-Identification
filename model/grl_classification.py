@@ -8,9 +8,9 @@ from model.grl import *
 from module.grl_model_outputs import GRLModelOutputs
 
 # hubert _HIDDEN_STATES_START_POSITION = 1, wav2vec2 and wavlm _HIDDEN_STATES_START_POSITION = 2
-_HIDDEN_STATES_START_POSITION = 1
+_HIDDEN_STATES_START_POSITION = 2
 
-class GRLClassification(HubertPreTrainedModel):
+class GRLClassification(WavLMPreTrainedModel):
     def __init__(self, config, *args, **kwargs):
         super().__init__(config)
 
@@ -18,7 +18,7 @@ class GRLClassification(HubertPreTrainedModel):
             raise ValueError(
                 "Sequence classification does not support the use of Wav2Vec2 adapters (config.add_adapter=True)"
             )
-        self.hubert = HubertModel(config)
+        self.wavlm = WavLMModel(config)
         num_layers = config.num_hidden_layers + 1  # transformer layers + input embeddings
         if config.use_weighted_layer_sum:
             self.layer_weights = nn.Parameter(torch.ones(num_layers) / num_layers)
@@ -44,7 +44,7 @@ class GRLClassification(HubertPreTrainedModel):
         Calling this function will disable the gradient computation for the feature encoder so that its parameter will
         not be updated during training.
         """
-        self.hubert.feature_extractor._freeze_parameters()
+        self.wavlm.feature_extractor._freeze_parameters()
         
     # def freeze_base_model(self):
     #     """
@@ -67,7 +67,7 @@ class GRLClassification(HubertPreTrainedModel):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         output_hidden_states = True if self.config.use_weighted_layer_sum else output_hidden_states
 
-        outputs = self.hubert(
+        outputs = self.wavlm(
             input_values,
             attention_mask=attention_mask,
             output_attentions=output_attentions,
@@ -115,8 +115,7 @@ class GRLClassification(HubertPreTrainedModel):
             loss=loss,
             logits=logits,
             hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
-            # domain_logits=speaker_logits
+            attentions=outputs.attentions
         )
 
     

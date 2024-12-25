@@ -7,6 +7,6 @@ from transformers.file_utils import ModelOutput
 class GRLModelOutputs(ModelOutput):
     loss: Optional[torch.FloatTensor] = None
     logits: torch.FloatTensor = None
-    domain_logits: torch.FloatTensor = None
+    # pooled_output: torch.FloatTensor = None
     hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
     attentions: Optional[Tuple[torch.FloatTensor, ...]] = None

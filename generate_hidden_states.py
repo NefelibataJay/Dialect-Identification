@@ -11,8 +11,8 @@ from tqdm import tqdm
 from model.grl_classification import GRLClassification
 from module.mydatasets import MyDataset
 
-root_file = f"./analysis_res/wavlm-base-FT-Dialect-GRL"
-model_path = "exp/wavlm-base-FT-Dialect-GRL"
+root_file = f"./analysis_res/wavlm-base"
+model_path = "exp/wavlm-base"
 dataset_path = "/root/KeSpeech/"
 manifest_path = "./data/dialect"
 dataset = MyDataset(manifest_path=os.path.join(manifest_path,"test_balance.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
@@ -29,7 +29,10 @@ feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
 model_path = os.path.join(os.getcwd(), model_path)
 
 config = AutoConfig.from_pretrained(model_path)
-model = GRLClassification.from_pretrained(model_path,config)
+config.num_labels = len(dataset.labels_dict)
+config.lamda = 0.1
+config.num_speaker = len(dataset.sex_dict)
+model = GRLClassification.from_pretrained(model_path,num_labels=config.num_labels,num_speaker=config.num_speaker,lamda=config.lamda)
 
 model.eval()
 
@@ -69,15 +72,18 @@ dataloaders = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collate
 with open(os.path.join(root_file, "layer_weights"), "w", encoding="utf-8") as f:
     f.write(f"{torch.nn.functional.softmax(model.layer_weights, dim=-1).detach()}\n")
 
+model.eval()
 for batch in tqdm(dataloaders):
     outputs = model(input_values=batch["input_values"], labels=batch["labels"])
+    layer_weights = torch.nn.functional.softmax(model.layer_weights, dim=-1).detach()
 
-    for idx in range(len(model.layer_weights)):
+    for idx in range(len(layer_weights)):
         hidden_state = outputs.hidden_states[idx].detach() # [batch, time, dim]
-        layer_weight = model.layer_weights[idx].detach()
+        layer_weight = layer_weights[idx]
 
-        hidden_state = hidden_state * torch.nn.functional.softmax(layer_weight, dim=-1)
-        hidden_state = hidden_state.mean(dim=1)
+        hidden_state = hidden_state * layer_weight
+        # hidden_state = hidden_state.mean(dim=1)
+        hidden_state = model.projector(hidden_state).mean(dim=1)
 
         # 写入到对应的文件中
         path = os.path.join(root_file, f"layer_{12-idx}")

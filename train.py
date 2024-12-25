@@ -12,10 +12,10 @@ from module.mydatasets import *
 
 def get_args():
     parser = argparse.ArgumentParser() 
-    parser.add_argument("--model_path", type=str, default="./exp/hubert-base", help="The path or name of the pre-trained model")
+    parser.add_argument("--model_path", type=str, default="./exp/wavlm-large", help="The path or name of the pre-trained model")
     parser.add_argument("--manifest_path", type=str, default="./data/dialect", help="The path of the manifest file")
     parser.add_argument("--dataset_path", type=str, default="/root/KeSpeech/", help="The path of the dataset")
-    parser.add_argument("--model_name", type=str, default="hubert-base-FT-Dialect-GRL-1", help="The name of your trained model")
+    parser.add_argument("--model_name", type=str, default="wavlm-large-FT-Dialect", help="The name of your trained model")
     parser.add_argument("--num_eopch", type=int, default=10, help="The number of training epochs")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="The number of gradient accumulation steps")
     parser.add_argument("--lr", type=float, default=1e-3, help="The learning rate of the optimizer")
@@ -26,8 +26,8 @@ def get_args():
 acc_metric = evaluate.load("./metrics/accuracy")
 def eval_metric(eval_predict):
     predictions, labels = eval_predict
-    predictions = predictions[0].argmax(axis=-1)
-    accuracy = acc_metric.compute(predictions=predictions, references=labels[0])
+    predictions = predictions.argmax(axis=-1)
+    accuracy = acc_metric.compute(predictions=predictions, references=labels)
     return {
         "accuracy": accuracy["accuracy"],
     }
@@ -60,7 +60,7 @@ def collate_fn(batch):
     return {
             "input_values": speech_feature["input_values"],
             "labels": label,
-            "speaker_labels": sex,
+            # "speaker_labels": sex,
         }
 
 def main(args):
@@ -111,9 +111,7 @@ if __name__ == "__main__":
 
     feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
     config = AutoConfig.from_pretrained(model_path)
-    config.num_labels = len(train_dataset.labels_dict)
-    config.lamda = 0.1
-    config.num_speaker = len(train_dataset.sex_dict)
+
 
     if not os.path.exists(model_path):
         if model_path.startswith("microsoft/wavlm"):
@@ -128,7 +126,11 @@ if __name__ == "__main__":
         try:
             # !! please change the code below to match your model
             # model = ***.from_pretrained(config)
-            model = GRLClassification.from_pretrained(model_path,config,num_labels=config.num_labels,num_speaker=config.num_speaker,lamda=config.lamda)
+            config.num_labels = len(train_dataset.labels_dict)
+            config.lamda = 0.1
+            config.num_speaker = len(train_dataset.sex_dict)
+            # model = GRLClassification.from_pretrained(model_path,config,num_labels=config.num_labels,num_speaker=config.num_speaker,lamda=config.lamda)
+            model = WavLMForSequenceClassification.from_pretrained(model_path,num_labels=len(train_dataset.labels_dict))
         except Exception:
             raise ValueError("You may be using a local directory to load models, but these models have different initializers, so you'll need to change the initializer in your code to match the model you need.")
     
