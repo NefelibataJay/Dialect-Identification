@@ -58,13 +58,13 @@ def save_data(hidden_states, dialect=None, speaker=None, gender=None):
     x_values = tsne.fit_transform(hidden_states)
     df = pd.DataFrame(x_values, columns=['x', 'y'])
 
-    if dialect != None:
+    if dialect is not None:
         for(i, l) in enumerate(dialect):
             df.loc[i, 'dialect'] = label_dict[l]
-    if speaker != None:
+    if speaker is not None:
         for(i, l) in enumerate(speaker):
-            df.loc[i, 'speaker'] = speaker_dict[l]
-    if gender != None:
+            df.loc[i, 'speaker'] = l
+    if gender is not None:
         for(i, l) in enumerate(gender):
             df.loc[i, 'gender'] =  sex_dict[l]
     
@@ -72,11 +72,11 @@ def save_data(hidden_states, dialect=None, speaker=None, gender=None):
     os.makedirs(layer_path, exist_ok=True)
 
     csv_path = os.path.join(layer_path, f"tsne_layer.csv")
-    df.to_csv(csv_path, index=False)  # 不保存索引列
+    df.to_csv(csv_path, index=False, sep="\t")  # 不保存索引列
     
 
 if __name__ == "__main__":
-    root_file = f"./analysis_res/wav2vec2-base"
+    root_file = f"./analysis_res/wavlm-base-FT-Dialect-GRL"
     sex_dict = {1:"Male", 2:"Female"}
     label_dict = {}
     speaker_dict = {}
@@ -92,21 +92,23 @@ if __name__ == "__main__":
         hidden_states = []
         labels = []
         speakers = []
+        genders = []
 
         with open(os.path.join(path, "hidden_state.txt"), "r") as f:
             for line in f.readlines():
-                label, speaker, hidden_state = line.strip().split("\t")
+                label, speaker, gender, hidden_state = line.strip().split("\t")
                 hidden_states.append(np.array(ast.literal_eval(hidden_state)))
                 labels.append(int(label))
                 speakers.append(int(speaker))
+                genders.append(int(gender))
 
-            
         hidden_states = np.array(hidden_states)
         labels = np.array(labels)
         random.shuffle(speakers)
         speakers = np.array(speakers)
-
-
+        genders = np.array(genders)
+        
+        save_data(hidden_states, labels, speakers,genders)
 
         # plot_xy(hidden_states, labels, idx, "dialect")
         # plot_xy(hidden_states, speakers, idx, "speaker")

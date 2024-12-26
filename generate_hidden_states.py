@@ -11,11 +11,11 @@ from tqdm import tqdm
 from model.grl_classification import GRLClassification
 from module.mydatasets import MyDataset
 
-root_file = f"./analysis_res/wavlm-base"
-model_path = "exp/wavlm-base"
+root_file = f"./analysis_res/hubert-base"
+model_path = "exp/hubert-base"
 dataset_path = "/root/KeSpeech/"
 manifest_path = "./data/dialect"
-dataset = MyDataset(manifest_path=os.path.join(manifest_path,"test_balance.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
+dataset = MyDataset(manifest_path=os.path.join(manifest_path,"test_analysis.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
 
 if not os.path.exists(root_file):
     os.makedirs(root_file)
@@ -63,7 +63,8 @@ def collate_fn(batch):
     return {
             "input_values": speech_feature["input_values"],
             "labels": label,
-            "speaker_labels": sex,
+            "sex": sex,
+            "speaker": speaker
         }
 
 dataloaders = DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
@@ -91,7 +92,7 @@ for batch in tqdm(dataloaders):
             os.makedirs(path)
         
         with open(os.path.join(path, "hidden_state.txt"), "a") as f:
-            f.write(f"{batch['labels'][0].detach()}\t{batch['speaker_labels'][0].detach()}\t{str(hidden_state.squeeze(0).detach().tolist())}\n")
+            f.write(f"{batch['labels'][0].detach()}\t{batch['speaker'][0].detach()}\t{batch['sex'][0].detach()}\t{str(hidden_state.squeeze(0).detach().tolist())}\n")
 
         
 
