@@ -1,8 +1,10 @@
+from model.grl_classification import GRLClassification
 from module.mydatasets import *
 import torch
 from transformers import Trainer, TrainingArguments, AutoFeatureExtractor, AutoModelForSequenceClassification, WavLMForSequenceClassification, HubertForSequenceClassification, Wav2Vec2ForSequenceClassification,WhisperForAudioClassification
 import evaluate
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 acc_metric = evaluate.load("./metrics/accuracy")
 def eval_metric(eval_predict):
@@ -43,7 +45,7 @@ def collate_fn(batch):
 if __name__ == "__main__":
     manifest_path = "./data/dialect"
     dataset_path = "/root/KeSpeech/"
-    model_path = "./exp/hubert-base-FT-Dialect"
+    model_path = "./exp/hubert-base-FT-Dialect-GRL"
     dataset = MyDataset(os.path.join(manifest_path,"test.tsv"), dataset_path=dataset_path, label_path=os.path.join(manifest_path,"labels.txt"))
     data_loader = DataLoader(dataset=dataset, batch_size=8, collate_fn=collate_fn,shuffle=False)
 
@@ -58,7 +60,7 @@ if __name__ == "__main__":
     lbs = []
     preds = []
     model.eval()
-    for batch in data_loader:
+    for batch in tqdm(data_loader):
         input_values,labels= batch
         input_values = input_values.to(device)
         labels = labels.to(device)
